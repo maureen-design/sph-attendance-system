@@ -1,0 +1,391 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  DEPARTMENT_SUPERVISOR
+  STAFF
+  MEMBER
+  ATTACHEE
+}
+
+enum AttendanceStatus {
+  EARLY
+  ON_TIME
+  LATE
+  UNRESOLVED
+  ABSENT_EXCUSED
+  ABSENT_UNEXCUSED
+  ABSENT_EXCUSE_PENDING
+  LEFT_EARLY
+}
+
+enum CheckOutMethod {
+  SCANNED
+  USER_REPORTED
+  AUTO_CLOSED
+}
+
+enum CheckInMethod {
+  QR_SCAN
+  MANUAL
+  SELF_CHECKIN
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LeaveType {
+  SICK
+  PERSONAL
+  EMERGENCY
+  OTHER
+}
+
+enum AnnouncementTarget {
+  ALL
+  DEPARTMENT
+}
+
+enum AnnouncementCategory {
+  STANDARD
+  DEPARTMENT
+  CRITICAL
+}
+
+enum WorkLogStatus {
+  SUBMITTED
+  MISSING
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+}
+
+// ─────────────────────────────────────────
+// ORGANIZATION (Multi-tenant root)
+// ─────────────────────────────────────────
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  shortName   String
+  logoUrl     String?
+  contactEmail String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users       User[]
+  departments Department[]
+  cohorts     Cohort[]
+  holidays    Holiday[]
+  announcements Announcement[]
+  auditLogs   AuditLog[]
+
+  @@map("organizations")
+}
+
+// ─────────────────────────────────────────
+// DEPARTMENT
+// ─────────────────────────────────────────
+
+model Department {
+  id             String   @id @default(cuid())
+  name           String
+  shiftStartTime String   // e.g. "08:00"
+  shiftEndTime   String   // e.g. "17:00"
+  cutoffTime     String   // e.g. "10:00"
+  gracePeriodMins Int     @default(15)
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  users          User[]
+  attendanceLogs AttendanceLog[]
+  announcements  Announcement[]
+  workLogs       WorkLog[]
+
+  @@map("departments")
+}
+
+// ─────────────────────────────────────────
+// COHORT (Attachee groups)
+// ─────────────────────────────────────────
+
+model Cohort {
+  id             String   @id @default(cuid())
+  name           String   // e.g. "SPH 002 2026"
+  startDate      DateTime
+  endDate        DateTime
+  organizationId String
+  inviteCode     String   @unique @default(cuid())
+  inviteExpiry   DateTime?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  users          User[]
+
+  @@map("cohorts")
+}
+
+// ─────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────
+
+model User {
+  id             String   @id @default(cuid())
+  fullName       String
+  email          String   @unique
+  phone          String?
+  passwordHash   String
+  role           Role     @default(ATTACHEE)
+  isActive       Boolean  @default(true)
+  isVerified     Boolean  @default(false)
+  verifyToken    String?
+  resetToken     String?
+  resetTokenExpiry DateTime?
+  organizationId String
+  departmentId   String?
+  cohortId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization     Organization   @relation(fields: [organizationId], references: [id])
+  department       Department?    @relation(fields: [departmentId], references: [id])
+  cohort           Cohort?        @relation(fields: [cohortId], references: [id])
+  attendanceLogs   AttendanceLog[]
+  leaves           Leave[]
+  workLogs         WorkLog[]
+  notifications    Notification[]
+  announcementReads AnnouncementRead[]
+  auditLogs        AuditLog[]
+  disputes         Dispute[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────
+// ATTENDANCE LOG (Master table)
+// ─────────────────────────────────────────
+
+model AttendanceLog {
+  id               String           @id @default(cuid())
+  userId           String
+  organizationId   String
+  departmentId     String
+  checkInTime      DateTime?
+  checkOutTime     DateTime?
+  checkInMethod    CheckInMethod?
+  checkOutMethod   CheckOutMethod?
+  status           AttendanceStatus @default(UNRESOLVED)
+  date             DateTime         // The date this record is for
+  overriddenBy     String?          // userId of who overrode
+  overrideReason   String?
+  notes            String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relations
+  user             User       @relation(fields: [userId], references: [id])
+  department       Department @relation(fields: [departmentId], references: [id])
+  dispute          Dispute?
+
+  @@map("attendance_logs")
+}
+
+// ─────────────────────────────────────────
+// DISPUTE
+// ─────────────────────────────────────────
+
+model Dispute {
+  id              String        @id @default(cuid())
+  attendanceLogId String        @unique
+  userId          String
+  reason          String
+  status          DisputeStatus @default(OPEN)
+  resolvedBy      String?
+  resolutionNote  String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  attendanceLog   AttendanceLog @relation(fields: [attendanceLogId], references: [id])
+  user            User          @relation(fields: [userId], references: [id])
+
+  @@map("disputes")
+}
+
+// ─────────────────────────────────────────
+// LEAVE
+// ─────────────────────────────────────────
+
+model Leave {
+  id           String      @id @default(cuid())
+  userId       String
+  type         LeaveType
+  startDate    DateTime
+  endDate      DateTime
+  reason       String
+  status       LeaveStatus @default(PENDING)
+  reviewedBy   String?
+  reviewNote   String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  user         User        @relation(fields: [userId], references: [id])
+
+  @@map("leaves")
+}
+
+// ─────────────────────────────────────────
+// ANNOUNCEMENT
+// ─────────────────────────────────────────
+
+model Announcement {
+  id             String               @id @default(cuid())
+  title          String
+  body           String
+  category       AnnouncementCategory @default(STANDARD)
+  target         AnnouncementTarget   @default(ALL)
+  departmentId   String?
+  organizationId String
+  postedBy       String
+  isPinned       Boolean              @default(false)
+  requiresAck    Boolean              @default(false)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  // Relations
+  organization   Organization         @relation(fields: [organizationId], references: [id])
+  department     Department?          @relation(fields: [departmentId], references: [id])
+  reads          AnnouncementRead[]
+
+  @@map("announcements")
+}
+
+// ─────────────────────────────────────────
+// ANNOUNCEMENT READ RECEIPT
+// ─────────────────────────────────────────
+
+model AnnouncementRead {
+  id             String    @id @default(cuid())
+  announcementId String
+  userId         String
+  readAt         DateTime  @default(now())
+  acknowledged   Boolean   @default(false)
+  acknowledgedAt DateTime?
+
+  // Relations
+  announcement   Announcement @relation(fields: [announcementId], references: [id])
+  user           User         @relation(fields: [userId], references: [id])
+
+  @@unique([announcementId, userId])
+  @@map("announcement_reads")
+}
+
+// ─────────────────────────────────────────
+// WORK LOG (Attachees only)
+// ─────────────────────────────────────────
+
+model WorkLog {
+  id           String        @id @default(cuid())
+  userId       String
+  departmentId String
+  date         DateTime
+  activities   String        // What they worked on
+  challenges   String?       // Challenges faced
+  progress     String        // Progress made
+  flagNote     String?       // Anything to flag
+  status       WorkLogStatus @default(SUBMITTED)
+  supervisorNote String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // Relations
+  user         User          @relation(fields: [userId], references: [id])
+  department   Department    @relation(fields: [departmentId], references: [id])
+
+  @@map("work_logs")
+}
+
+// ─────────────────────────────────────────
+// NOTIFICATION
+// ─────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  type      String   // e.g. "CHECKIN_REMINDER", "ABSENT_ALERT", "ANNOUNCEMENT"
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────
+// HOLIDAY
+// ─────────────────────────────────────────
+
+model Holiday {
+  id             String   @id @default(cuid())
+  name           String
+  date           DateTime
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("holidays")
+}
+
+// ─────────────────────────────────────────
+// AUDIT LOG (Read-only, permanent)
+// ─────────────────────────────────────────
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  action         String   // e.g. "OVERRIDE_ATTENDANCE", "DEACTIVATE_USER"
+  targetId       String?  // ID of the affected record
+  targetType     String?  // e.g. "AttendanceLog", "User"
+  before         Json?    // State before change
+  after          Json?    // State after change
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  // Relations
+  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("audit_logs")
+}
