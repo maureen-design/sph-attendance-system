@@ -8,8 +8,8 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: sph_user
-      POSTGRES_PASSWORD: sph_password
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: sph_attendance
     volumes:
       - pgdata:/var/lib/postgresql/data
