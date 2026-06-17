@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express';
+import authRoutes from './auth.routes.js';
 
 const router = Router();
 
@@ -9,5 +10,7 @@ router.get('/health', (_req: Request, res: Response) => {
     uptime: process.uptime(),
   });
 });
+
+router.use('/auth', authRoutes);
 
 export default router;
