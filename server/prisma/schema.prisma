@@ -1,0 +1,347 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  DEPARTMENT_SUPERVISOR
+  STAFF
+  MEMBER
+  ATTACHEE
+}
+
+enum AttendanceStatus {
+  EARLY
+  ON_TIME
+  LATE
+  UNRESOLVED
+  ABSENT_EXCUSED
+  ABSENT_UNEXCUSED
+  ABSENT_EXCUSE_PENDING
+  LEFT_EARLY
+  DISPUTED
+}
+
+enum CheckOutMethod {
+  SCANNED
+  USER_REPORTED
+  AUTO_CLOSED
+}
+
+enum CheckInMethod {
+  QR
+  MANUAL
+  OFFLINE_QUEUE
+}
+
+enum LeaveType {
+  SICK
+  EMERGENCY
+  OFFICIAL_DUTY
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AnnouncementCategory {
+  STANDARD
+  DEPARTMENT
+  CRITICAL
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  shortName   String
+  email       String
+  logoUrl     String?
+  timezone    String   @default("Africa/Nairobi")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users        User[]
+  departments  Department[]
+  cohorts      Cohort[]
+  announcements Announcement[]
+  holidays     Holiday[]
+  auditLogs    AuditLog[]
+  attendanceLogs AttendanceLog[]
+}
+
+model User {
+  id             String   @id @default(cuid())
+  fullName       String
+  email          String
+  phone          String?
+  role           Role
+  organizationId String
+  departmentId   String?
+  cohortId       String?
+  passwordHash   String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  department     Department?   @relation(fields: [departmentId], references: [id])
+  cohort         Cohort?       @relation(fields: [cohortId], references: [id])
+
+  attendanceLogs   AttendanceLog[]
+  workLogs         WorkLog[]
+  leaves           Leave[]
+  notifications    Notification[]
+  refreshTokens    RefreshToken[]
+  supervisedDept   Department[]    @relation("DeptSupervisor")
+  disputes         Dispute[]       @relation("DisputeUser")
+  resolvedDisputes Dispute[]       @relation("DisputeResolver")
+  auditLogs        AuditLog[]      @relation("AuditActor")
+  overriddenLogs   AttendanceLog[] @relation("AttendanceOverrider")
+
+  @@unique([email, organizationId])
+  @@index([organizationId, departmentId, role])
+}
+
+model Department {
+  id             String   @id @default(cuid())
+  name           String
+  organizationId String
+  supervisorId   String?
+  shiftStart     String
+  shiftEnd       String
+  timezone       String   @default("Africa/Nairobi")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  supervisor     User?        @relation("DeptSupervisor", fields: [supervisorId], references: [id])
+  users          User[]
+  schedules      Schedule[]
+  attendanceLogs AttendanceLog[]
+  announcements  Announcement[]
+  inviteLinks    InviteLink[]
+}
+
+model Schedule {
+  id               String   @id @default(cuid())
+  departmentId     String
+  userType         Role
+  cutoffTime       String
+  gracePeriodMins  Int      @default(15)
+  createdAt        DateTime @default(now())
+
+  department       Department @relation(fields: [departmentId], references: [id])
+
+  @@unique([departmentId, userType])
+}
+
+model Cohort {
+  id             String    @id @default(cuid())
+  name           String
+  organizationId String
+  startDate      DateTime
+  endDate        DateTime
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  users          User[]
+  inviteLinks    InviteLink[]
+}
+
+model InviteLink {
+  id           String    @id @default(cuid())
+  token        String    @unique
+  cohortId     String
+  departmentId String?
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  maxUses      Int       @default(1)
+  usedCount    Int       @default(0)
+  createdAt    DateTime  @default(now())
+
+  cohort       Cohort      @relation(fields: [cohortId], references: [id])
+  department   Department? @relation(fields: [departmentId], references: [id])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  deviceInfo String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model AttendanceLog {
+  id              String           @id @default(cuid())
+  userId          String
+  organizationId  String
+  departmentId    String
+  date            DateTime         @db.Date
+  checkInTime     DateTime?
+  checkOutTime    DateTime?
+  checkOutMethod  CheckOutMethod?
+  checkInMethod   CheckInMethod?
+  status          AttendanceStatus
+  overriddenBy    String?
+  overrideReason  String?
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user            User         @relation(fields: [userId], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  department      Department   @relation(fields: [departmentId], references: [id])
+  overrider       User?        @relation("AttendanceOverrider", fields: [overriddenBy], references: [id])
+  disputes        Dispute[]
+
+  @@unique([userId, date])
+  @@index([organizationId, date])
+  @@index([departmentId, date])
+}
+
+model WorkLog {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  date           DateTime @db.Date
+  summary        String
+  progress       String
+  blockers       String?
+  needsHelp      Boolean  @default(false)
+  supervisorNote String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@index([organizationId, date])
+}
+
+model Leave {
+  id           String      @id @default(cuid())
+  userId       String
+  type         LeaveType
+  startDate    DateTime    @db.Date
+  endDate      DateTime    @db.Date
+  reason       String
+  attachmentUrl String?
+  status       LeaveStatus @default(PENDING)
+  decidedBy    String?
+  decisionNote String?
+  decidedAt    DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user         User        @relation(fields: [userId], references: [id])
+}
+
+model Announcement {
+  id             String               @id @default(cuid())
+  organizationId String
+  departmentId   String?
+  title          String
+  body           String
+  category       AnnouncementCategory @default(STANDARD)
+  postedById     String
+  requiresAck    Boolean              @default(false)
+  isPinned       Boolean              @default(false)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  department     Department?   @relation(fields: [departmentId], references: [id])
+  readReceipts   ReadReceipt[]
+
+  @@index([organizationId, createdAt])
+}
+
+model ReadReceipt {
+  id             String       @id @default(cuid())
+  announcementId String
+  userId         String
+  readAt         DateTime     @default(now())
+  acknowledgedAt DateTime?
+
+  announcement   Announcement @relation(fields: [announcementId], references: [id])
+
+  @@unique([announcementId, userId])
+}
+
+model Dispute {
+  id              String   @id @default(cuid())
+  attendanceLogId String
+  userId          String
+  reason          String
+  resolvedBy      String?
+  resolution      String?
+  resolvedAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  attendanceLog   AttendanceLog @relation(fields: [attendanceLogId], references: [id])
+  user            User          @relation("DisputeUser", fields: [userId], references: [id])
+  resolver        User?         @relation("DisputeResolver", fields: [resolvedBy], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  type      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+}
+
+model Holiday {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  date           DateTime @db.Date
+  createdAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, date])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorId        String
+  action         String
+  tableName      String
+  recordId       String
+  before         Json?
+  after          Json?
+  reason         String?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  actor          User         @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([actorId])
+}

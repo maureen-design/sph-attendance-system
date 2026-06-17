@@ -1,0 +1,18 @@
+{
+  "name": "sph-attendance-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SPH Attendance System — Swahilipot Hub people management platform",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "npm run dev --prefix client",
+    "dev:server": "npm run dev --prefix server",
+    "build": "npm run build --prefix client && npm run build --prefix server",
+    "lint": "npm run lint --prefix client && npm run lint --prefix server",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path .gitignore"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "prettier": "^3.4.2"
+  }
+}
