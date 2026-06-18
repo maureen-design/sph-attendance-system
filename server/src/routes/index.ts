@@ -4,6 +4,7 @@ import setupRoutes from './setup.routes.js';
 import qrRoutes from './qr.routes.js';
 import attendanceRoutes from './attendance.routes.js';
 import dashboardRoutes from './dashboard.routes.js';
+import notificationRoutes from './notification.routes.js';
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use('/setup', setupRoutes);
 router.use('/qr', qrRoutes);
 router.use('/attendance', attendanceRoutes);
 router.use('/dashboard', dashboardRoutes);
+router.use('/notifications', notificationRoutes);
 
 export default router;

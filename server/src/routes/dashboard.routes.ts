@@ -4,6 +4,7 @@ import {
   getLiveDashboard,
   exportAttendance,
   getPersonalDashboard,
+  getSupervisorSummary,
 } from '../controllers/dashboard.controller.js';
 import { authenticateToken, requireRole } from '../middleware/index.js';
 
@@ -31,6 +32,12 @@ router.get(
   '/supervisor/export',
   requireRole('SUPER_ADMIN', 'DEPARTMENT_SUPERVISOR'),
   exportAttendance,
+);
+
+router.get(
+  '/supervisor/summary',
+  requireRole('SUPER_ADMIN', 'DEPARTMENT_SUPERVISOR'),
+  getSupervisorSummary,
 );
 
 export default router;

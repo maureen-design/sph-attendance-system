@@ -47,6 +47,15 @@ type SimpleLog = {
   status: string;
 };
 
+type SummaryLogRow = AnyLog & {
+  user: {
+    id: string;
+    fullName: string;
+    role: string;
+    cohort: { name: string } | null;
+  };
+};
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function getTodayStr(timezone: string): string {
@@ -538,6 +547,142 @@ export async function getPersonalDashboard(
       attendanceScore,
       thisWeek,
       recentHistory,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── ENDPOINT 5: GET /api/dashboard/supervisor/summary ──────────────────────
+
+export async function getSupervisorSummary(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const userId = req.user!.id;
+    const userRole = req.user!.role;
+    const organizationId = req.user!.organizationId;
+
+    const {
+      startDate: startDateStr,
+      endDate: endDateStr,
+      departmentId: queryDeptId,
+    } = req.query as {
+      startDate?: string;
+      endDate?: string;
+      departmentId?: string;
+    };
+
+    if (!startDateStr || !endDateStr) {
+      respond.error(res, 'startDate and endDate query params are required', 400);
+      return;
+    }
+
+    const startDate = new Date(startDateStr + 'T00:00:00.000Z');
+    const endDate = new Date(endDateStr + 'T00:00:00.000Z');
+
+    // Scope department for DEPARTMENT_SUPERVISOR
+    const scopedDeptId =
+      userRole === Role.DEPARTMENT_SUPERVISOR ? await resolveSupervisorDeptId(userId) : queryDeptId;
+
+    // Get org holidays in range
+    const holidays = (await prisma.holiday.findMany({
+      where: {
+        organizationId,
+        date: { gte: startDate, lte: endDate },
+      },
+      select: { date: true },
+    })) as { date: Date }[];
+    const holidaySet = new Set(holidays.map((h: { date: Date }) => format(h.date, 'yyyy-MM-dd')));
+
+    // Calculate total working days (exclude weekends + holidays)
+    const allDays = eachDayOfInterval({ start: startDate, end: endDate });
+    const workingDays = allDays.filter(
+      (d: Date) => !isWeekendDate(d) && !holidaySet.has(format(d, 'yyyy-MM-dd')),
+    );
+    const totalWorkingDays = workingDays.length;
+
+    // Fetch all attendance logs in range
+    const logInclude = {
+      user: {
+        select: {
+          id: true,
+          fullName: true,
+          role: true,
+          cohort: { select: { name: true } },
+        },
+      },
+    } as const;
+
+    const logs = (
+      scopedDeptId
+        ? await prisma.attendanceLog.findMany({
+            where: {
+              organizationId,
+              date: { gte: startDate, lte: endDate },
+              departmentId: scopedDeptId,
+            },
+            include: logInclude,
+          })
+        : await prisma.attendanceLog.findMany({
+            where: {
+              organizationId,
+              date: { gte: startDate, lte: endDate },
+            },
+            include: logInclude,
+          })
+    ) as SummaryLogRow[];
+
+    // Group logs by userId
+    const logsByUser = new Map<string, SummaryLogRow[]>();
+    for (const log of logs) {
+      const arr = logsByUser.get(log.userId) ?? [];
+      arr.push(log);
+      logsByUser.set(log.userId, arr);
+    }
+
+    // Build per-person summary
+    const perPerson = Array.from(logsByUser.entries()).map(([uid, userLogs]) => {
+      const firstLog = userLogs[0];
+      const presentDays = userLogs.filter(
+        (l: SummaryLogRow) => l.status === 'ON_TIME' || l.status === 'EARLY' || l.status === 'LATE',
+      ).length;
+      const lateDays = userLogs.filter((l: SummaryLogRow) => l.status === 'LATE').length;
+      const excusedDays = userLogs.filter(
+        (l: SummaryLogRow) => l.status === 'ABSENT_EXCUSED',
+      ).length;
+      const absentDays = totalWorkingDays - presentDays - excusedDays;
+      const attendanceRate =
+        totalWorkingDays > 0 ? Math.round((presentDays / totalWorkingDays) * 100) : 0;
+
+      return {
+        user: {
+          id: uid,
+          fullName: firstLog.user.fullName,
+          role: firstLog.user.role,
+          cohort: firstLog.user.cohort,
+        },
+        presentDays,
+        lateDays,
+        absentDays: Math.max(0, absentDays),
+        excusedDays,
+        attendanceRate,
+      };
+    });
+
+    // Department average
+    const avgRate =
+      perPerson.length > 0
+        ? Math.round(perPerson.reduce((sum, p) => sum + p.attendanceRate, 0) / perPerson.length)
+        : 0;
+
+    respond.success(res, {
+      dateRange: { start: startDateStr, end: endDateStr },
+      totalWorkingDays,
+      departmentAverage: avgRate,
+      perPerson,
     });
   } catch (err) {
     next(err);
