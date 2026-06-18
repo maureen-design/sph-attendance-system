@@ -1,0 +1,36 @@
+import { Router } from 'express';
+import {
+  getSupervisorDashboard,
+  getLiveDashboard,
+  exportAttendance,
+  getPersonalDashboard,
+} from '../controllers/dashboard.controller.js';
+import { authenticateToken, requireRole } from '../middleware/index.js';
+
+const router = Router();
+
+router.use(authenticateToken);
+
+// Personal dashboard — any authenticated user
+router.get('/personal', getPersonalDashboard);
+
+// Supervisor dashboards — restricted to SUPER_ADMIN and DEPARTMENT_SUPERVISOR
+router.get(
+  '/supervisor',
+  requireRole('SUPER_ADMIN', 'DEPARTMENT_SUPERVISOR'),
+  getSupervisorDashboard,
+);
+
+router.get(
+  '/supervisor/live',
+  requireRole('SUPER_ADMIN', 'DEPARTMENT_SUPERVISOR'),
+  getLiveDashboard,
+);
+
+router.get(
+  '/supervisor/export',
+  requireRole('SUPER_ADMIN', 'DEPARTMENT_SUPERVISOR'),
+  exportAttendance,
+);
+
+export default router;

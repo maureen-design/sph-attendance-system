@@ -3,6 +3,7 @@ import authRoutes from './auth.routes.js';
 import setupRoutes from './setup.routes.js';
 import qrRoutes from './qr.routes.js';
 import attendanceRoutes from './attendance.routes.js';
+import dashboardRoutes from './dashboard.routes.js';
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use('/auth', authRoutes);
 router.use('/setup', setupRoutes);
 router.use('/qr', qrRoutes);
 router.use('/attendance', attendanceRoutes);
+router.use('/dashboard', dashboardRoutes);
 
 export default router;
