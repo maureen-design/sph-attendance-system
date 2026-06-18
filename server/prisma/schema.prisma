@@ -87,6 +87,8 @@ model User {
   departmentId   String?
   cohortId       String?
   passwordHash   String
+  resetToken     String?
+  resetTokenExpiry DateTime?
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

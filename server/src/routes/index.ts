@@ -7,6 +7,8 @@ import dashboardRoutes from './dashboard.routes.js';
 import notificationRoutes from './notification.routes.js';
 import announcementRoutes from './announcement.routes.js';
 import worklogRoutes from './worklog.routes.js';
+import userRoutes from './user.routes.js';
+import disputeRoutes from './dispute.routes.js';
 
 const router = Router();
 
@@ -26,5 +28,7 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/announcements', announcementRoutes);
 router.use('/worklogs', worklogRoutes);
+router.use('/users', userRoutes);
+router.use('/disputes', disputeRoutes);
 
 export default router;

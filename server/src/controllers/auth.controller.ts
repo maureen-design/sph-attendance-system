@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import type { Request, Response, NextFunction } from 'express';
 import prisma from '../db/prisma.js';
 import { hashPassword, comparePassword } from '../utils/hash.js';
@@ -7,6 +8,8 @@ import {
   verifyRefreshToken,
   type TokenPayload,
 } from '../utils/jwt.js';
+import { sendPasswordResetEmail, sendWelcomeEmail } from '../utils/email.js';
+import { config } from '../config/env.js';
 import * as respond from '../utils/response.js';
 
 // ─── Validation helpers ─────────────────────────────────────────────────────
@@ -120,7 +123,14 @@ export async function register(req: Request, res: Response, next: NextFunction):
       },
     });
 
-    // 7) Response
+    // 7) Send welcome email (failure won't affect response)
+    try {
+      await sendWelcomeEmail(user.email, user.fullName, `${config.CLIENT_URL}/login`);
+    } catch (emailErr) {
+      console.error('[register] Failed to send welcome email:', (emailErr as Error).message);
+    }
+
+    // 8) Response
     respond.success(
       res,
       {
@@ -352,6 +362,160 @@ export async function logout(req: Request, res: Response, next: NextFunction): P
     });
 
     respond.success(res, { message: 'Logged out successfully' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── POST /api/auth/forgot-password ─────────────────────────────────────────
+
+export async function forgotPassword(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { email, organizationId } = req.body as {
+      email?: string;
+      organizationId?: string;
+    };
+
+    if (!email || !organizationId) {
+      respond.error(res, 'email and organizationId are required', 400);
+      return;
+    }
+
+    const genericMessage = 'If an account exists, a reset link has been sent';
+
+    // 1) Find user
+    const user = await prisma.user.findUnique({
+      where: { email_organizationId: { email, organizationId } },
+    });
+
+    if (!user) {
+      respond.success(res, { message: genericMessage });
+      return;
+    }
+
+    // 2) Generate reset token
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = await hashPassword(rawToken);
+    const resetTokenExpiry = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+
+    // 3) Store in DB
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { resetToken: tokenHash, resetTokenExpiry },
+    });
+
+    // 4) Build reset link
+    const resetLink = `${config.CLIENT_URL}/reset-password?token=${rawToken}&userId=${user.id}`;
+
+    // 5) Send email (failure won't crash)
+    await sendPasswordResetEmail(user.email, user.fullName, resetLink);
+
+    // 6) Audit log
+    await prisma.auditLog.create({
+      data: {
+        organizationId,
+        actorId: user.id,
+        action: 'PASSWORD_RESET_REQUESTED',
+        tableName: 'User',
+        recordId: user.id,
+        ipAddress: req.ip ?? null,
+        userAgent: req.headers['user-agent'] ?? null,
+      },
+    });
+
+    respond.success(res, { message: genericMessage });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── POST /api/auth/reset-password ──────────────────────────────────────────
+
+export async function resetPassword(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { userId, token, newPassword } = req.body as {
+      userId?: string;
+      token?: string;
+      newPassword?: string;
+    };
+
+    if (!userId || !token || !newPassword) {
+      respond.error(res, 'userId, token, and newPassword are required', 400);
+      return;
+    }
+
+    // 1) Find user
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      respond.error(res, 'Invalid or expired reset link', 400);
+      return;
+    }
+
+    // 2) Check DB fields
+    if (!user.resetToken || !user.resetTokenExpiry) {
+      respond.error(res, 'Invalid or expired reset link', 400);
+      return;
+    }
+
+    // 3) Check expiry
+    if (user.resetTokenExpiry < new Date()) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { resetToken: null, resetTokenExpiry: null },
+      });
+      respond.error(res, 'Reset link has expired', 400);
+      return;
+    }
+
+    // 4) Compare token against stored hash
+    const valid = await comparePassword(token, user.resetToken);
+    if (!valid) {
+      respond.error(res, 'Invalid or expired reset link', 400);
+      return;
+    }
+
+    // 5) Hash new password
+    const newHash = await hashPassword(newPassword);
+
+    // 6) Update user: password + clear reset fields
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: newHash,
+        resetToken: null,
+        resetTokenExpiry: null,
+      },
+    });
+
+    // 7) Revoke all active refresh tokens
+    await prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    // 8) Audit log
+    await prisma.auditLog.create({
+      data: {
+        organizationId: user.organizationId,
+        actorId: userId,
+        action: 'PASSWORD_RESET',
+        tableName: 'User',
+        recordId: userId,
+        ipAddress: req.ip ?? null,
+        userAgent: req.headers['user-agent'] ?? null,
+      },
+    });
+
+    respond.success(res, { message: 'Password reset successful. Please log in.' });
   } catch (err) {
     next(err);
   }

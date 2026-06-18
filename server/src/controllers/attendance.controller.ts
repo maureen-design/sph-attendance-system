@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { type LeaveType } from '@prisma/client';
+import { Role, type LeaveType, type AttendanceStatus } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import prisma from '../db/prisma.js';
 import { verifyQRToken } from '../utils/qr.js';
@@ -515,7 +515,7 @@ export async function decideExcuse(req: Request, res: Response, next: NextFuncti
 
     // 2) Verify org match
     if (leave.user.organizationId !== reviewerOrgId) {
-      respond.error(res, 'Cannot review leave from another organization', 403);
+      respond.error(res, 'Cannot review leaves from another organization', 403);
       return;
     }
 
@@ -582,6 +582,104 @@ export async function decideExcuse(req: Request, res: Response, next: NextFuncti
       leave: updatedLeave,
       attendanceLog: updatedLog,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── PATCH /api/attendance/:id/override ─────────────────────────────────────
+
+export async function overrideAttendance(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const logId = req.params.id as string;
+    const actorId = req.user!.id;
+    const userRole = req.user!.role;
+    const organizationId = req.user!.organizationId;
+
+    const { status, reason } = req.body as {
+      status?: AttendanceStatus;
+      reason?: string;
+    };
+
+    if (!status) {
+      respond.error(res, 'status is required', 400);
+      return;
+    }
+    if (!reason) {
+      respond.error(res, 'reason is required', 400);
+      return;
+    }
+
+    // 1) Find AttendanceLog
+    const log = await prisma.attendanceLog.findUnique({
+      where: { id: logId },
+    });
+
+    if (!log) {
+      respond.error(res, 'Attendance log not found', 404);
+      return;
+    }
+
+    // 2) Verify belongs to supervisor's org
+    if (log.organizationId !== organizationId) {
+      respond.error(res, 'Access denied', 403);
+      return;
+    }
+
+    // 3) DEPARTMENT_SUPERVISOR: verify department match
+    if (userRole === Role.DEPARTMENT_SUPERVISOR) {
+      const sup = await prisma.user.findUnique({
+        where: { id: actorId },
+        select: { departmentId: true },
+      });
+      if (log.departmentId !== sup?.departmentId) {
+        respond.error(res, 'Can only override records in your department', 403);
+        return;
+      }
+    }
+
+    // 4) Store previous status
+    const previousStatus = log.status;
+
+    // 5) Update AttendanceLog
+    const updated = await prisma.attendanceLog.update({
+      where: { id: logId },
+      data: {
+        status,
+        overriddenBy: actorId,
+        overrideReason: reason,
+      },
+    });
+
+    // 6) Audit log
+    await prisma.auditLog.create({
+      data: {
+        organizationId,
+        actorId,
+        action: 'ATTENDANCE_OVERRIDDEN',
+        tableName: 'AttendanceLog',
+        recordId: logId,
+        reason: `Status: ${previousStatus} → ${status}. Reason: ${reason}`,
+        ipAddress: req.ip ?? null,
+        userAgent: req.headers['user-agent'] ?? null,
+      },
+    });
+
+    // 7) Notify affected user
+    await prisma.notification.create({
+      data: {
+        userId: log.userId,
+        title: 'Attendance Record Updated',
+        body: `Your attendance record for ${format(log.date, 'yyyy-MM-dd')} was updated by your supervisor`,
+        type: 'ATTENDANCE_OVERRIDE',
+      },
+    });
+
+    respond.success(res, { attendanceLog: updated });
   } catch (err) {
     next(err);
   }
