@@ -1,10 +1,10 @@
-import crypto from 'crypto';
+﻿import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 import prisma from '../db/prisma.js';
 import { hashPassword } from '../utils/hash.js';
 import * as respond from '../utils/response.js';
 
-// ─── Validation helpers ─────────────────────────────────────────────────────
+// --- Validation helpers -----------------------------------------------------
 
 function validateSetup(body: Record<string, unknown>): string[] {
   const errors: string[] = [];
@@ -21,7 +21,7 @@ function validateSetup(body: Record<string, unknown>): string[] {
   return errors;
 }
 
-// ─── GET /api/setup/status ──────────────────────────────────────────────────
+// --- GET /api/setup/status --------------------------------------------------
 
 export async function getStatus(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -32,7 +32,7 @@ export async function getStatus(_req: Request, res: Response, next: NextFunction
   }
 }
 
-// ─── POST /api/setup ────────────────────────────────────────────────────────
+// --- POST /api/setup --------------------------------------------------------
 
 export async function setup(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -131,7 +131,7 @@ export async function setup(req: Request, res: Response, next: NextFunction): Pr
   }
 }
 
-// ─── POST /api/setup/departments ────────────────────────────────────────────
+// --- POST /api/setup/departments --------------------------------------------
 
 interface DepartmentInput {
   name: string;
@@ -238,7 +238,7 @@ export async function createDepartments(
   }
 }
 
-// ─── POST /api/setup/cohort ─────────────────────────────────────────────────
+// --- POST /api/setup/cohort -------------------------------------------------
 
 export async function createCohort(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {

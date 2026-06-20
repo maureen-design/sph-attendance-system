@@ -1,9 +1,9 @@
-import { Role, type AnnouncementCategory } from '@prisma/client';
+﻿import { Role, type AnnouncementCategory } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import prisma from '../db/prisma.js';
 import * as respond from '../utils/response.js';
 
-// ─── Type aliases ───────────────────────────────────────────────────────────
+// --- Type aliases -----------------------------------------------------------
 
 type AnnouncementRow = {
   id: string;
@@ -28,7 +28,7 @@ type RawReceipt = {
 
 type UserRow = { id: string; fullName: string };
 
-// ─── ENDPOINT 1: POST /api/announcements ────────────────────────────────────
+// --- ENDPOINT 1: POST /api/announcements ------------------------------------
 
 export async function createAnnouncement(
   req: Request,
@@ -127,7 +127,7 @@ export async function createAnnouncement(
   }
 }
 
-// ─── ENDPOINT 2: GET /api/announcements ─────────────────────────────────────
+// --- ENDPOINT 2: GET /api/announcements -------------------------------------
 
 export async function getAnnouncements(
   req: Request,
@@ -153,9 +153,15 @@ export async function getAnnouncements(
     // Build filter: org-wide + user's department
     const where: Record<string, unknown> = {
       organizationId,
-      OR: [{ departmentId: null }, { departmentId: user?.departmentId }],
     };
-    if (departmentId) where.departmentId = departmentId;
+
+    // Department scope: include org-wide announcements + department-specific ones
+    if (departmentId) {
+      where.OR = [{ departmentId: null }, { departmentId }];
+    } else {
+      where.OR = [{ departmentId: null }, { departmentId: user?.departmentId }];
+    }
+
     if (category) where.category = category;
     if (pinned === 'true') where.isPinned = true;
 
@@ -202,7 +208,7 @@ export async function getAnnouncements(
   }
 }
 
-// ─── ENDPOINT 3: PATCH /api/announcements/:id/read ──────────────────────────
+// --- ENDPOINT 3: PATCH /api/announcements/:id/read --------------------------
 
 export async function markAnnouncementRead(
   req: Request,
@@ -235,7 +241,7 @@ export async function markAnnouncementRead(
   }
 }
 
-// ─── ENDPOINT 4: PATCH /api/announcements/:id/acknowledge ───────────────────
+// --- ENDPOINT 4: PATCH /api/announcements/:id/acknowledge -------------------
 
 export async function acknowledgeAnnouncement(
   req: Request,
@@ -277,7 +283,7 @@ export async function acknowledgeAnnouncement(
   }
 }
 
-// ─── ENDPOINT 5: GET /api/announcements/:id/receipts ────────────────────────
+// --- ENDPOINT 5: GET /api/announcements/:id/receipts ------------------------
 
 export async function getReceipts(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -292,7 +298,7 @@ export async function getReceipts(req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    // ReadReceipt has no direct user relation — fetch separately
+    // ReadReceipt has no direct user relation - fetch separately
     const rawReceipts = (await prisma.readReceipt.findMany({
       where: { announcementId: annId },
       select: { id: true, userId: true, readAt: true, acknowledgedAt: true },
@@ -333,7 +339,7 @@ export async function getReceipts(req: Request, res: Response, next: NextFunctio
   }
 }
 
-// ─── ENDPOINT 6: DELETE /api/announcements/:id ──────────────────────────────
+// --- ENDPOINT 6: DELETE /api/announcements/:id ------------------------------
 
 export async function archiveAnnouncement(
   req: Request,

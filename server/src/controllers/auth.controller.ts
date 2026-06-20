@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+﻿import crypto from 'node:crypto';
 import type { Request, Response, NextFunction } from 'express';
 import prisma from '../db/prisma.js';
 import { hashPassword, comparePassword } from '../utils/hash.js';
@@ -12,7 +12,7 @@ import { sendPasswordResetEmail, sendWelcomeEmail } from '../utils/email.js';
 import { config } from '../config/env.js';
 import * as respond from '../utils/response.js';
 
-// ─── Validation helpers ─────────────────────────────────────────────────────
+// --- Validation helpers -----------------------------------------------------
 
 function validateRegister(body: Record<string, unknown>): string[] {
   const errors: string[] = [];
@@ -33,7 +33,7 @@ function validateLogin(body: Record<string, unknown>): string[] {
   return errors;
 }
 
-// ─── POST /api/auth/register ────────────────────────────────────────────────
+// --- POST /api/auth/register ------------------------------------------------
 
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -149,7 +149,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
   }
 }
 
-// ─── POST /api/auth/login ───────────────────────────────────────────────────
+// --- POST /api/auth/login ---------------------------------------------------
 
 export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -188,7 +188,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       return;
     }
 
-    // 4) Manage refresh token limit — revoke oldest if >= 2 active
+    // 4) Manage refresh token limit - revoke oldest if >= 2 active
     const activeTokens = await prisma.refreshToken.findMany({
       where: { userId: user.id, revokedAt: null },
       orderBy: { createdAt: 'asc' },
@@ -255,7 +255,7 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
   }
 }
 
-// ─── POST /api/auth/refresh ─────────────────────────────────────────────────
+// --- POST /api/auth/refresh -------------------------------------------------
 
 export async function refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -318,7 +318,7 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
   }
 }
 
-// ─── POST /api/auth/logout ──────────────────────────────────────────────────
+// --- POST /api/auth/logout --------------------------------------------------
 
 export async function logout(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -367,7 +367,7 @@ export async function logout(req: Request, res: Response, next: NextFunction): P
   }
 }
 
-// ─── POST /api/auth/forgot-password ─────────────────────────────────────────
+// --- POST /api/auth/forgot-password -----------------------------------------
 
 export async function forgotPassword(
   req: Request,
@@ -433,7 +433,7 @@ export async function forgotPassword(
   }
 }
 
-// ─── POST /api/auth/reset-password ──────────────────────────────────────────
+// --- POST /api/auth/reset-password ------------------------------------------
 
 export async function resetPassword(
   req: Request,

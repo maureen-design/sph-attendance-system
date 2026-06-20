@@ -6,7 +6,7 @@ const prisma = new PrismaClient({
 });
 
 const shutdown = async (signal: string): Promise<void> => {
-  console.log(`[prisma] Received ${signal} — disconnecting...`);
+  console.log(`[prisma] Received ${signal} - disconnecting...`);
   await prisma.$disconnect();
   process.exit(0);
 };

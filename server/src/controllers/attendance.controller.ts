@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+﻿import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { Role, type LeaveType, type AttendanceStatus } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
@@ -7,7 +7,7 @@ import { verifyQRToken } from '../utils/qr.js';
 import { calculateAttendanceStatus, calculateCheckOutStatus } from '../utils/attendance.js';
 import * as respond from '../utils/response.js';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// --- Helpers ----------------------------------------------------------------
 
 /**
  * Gets today's date string in the org timezone (YYYY-MM-DD).
@@ -17,7 +17,7 @@ function getTodayInTimezone(timezone: string): string {
   return format(zoned, 'yyyy-MM-dd');
 }
 
-// ─── POST /api/attendance/checkin ───────────────────────────────────────────
+// --- POST /api/attendance/checkin -------------------------------------------
 
 export async function checkIn(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -134,7 +134,7 @@ export async function checkIn(req: Request, res: Response, next: NextFunction): 
   }
 }
 
-// ─── POST /api/attendance/checkout ──────────────────────────────────────────
+// --- POST /api/attendance/checkout ------------------------------------------
 
 export async function checkOut(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -233,7 +233,7 @@ export async function checkOut(req: Request, res: Response, next: NextFunction):
   }
 }
 
-// ─── POST /api/attendance/checkout/self-report ──────────────────────────────
+// --- POST /api/attendance/checkout/self-report ------------------------------
 
 export async function selfReportCheckOut(
   req: Request,
@@ -303,7 +303,7 @@ export async function selfReportCheckOut(
       );
 
       if (checkoutStatus !== 'LEFT_EARLY') {
-        // Reported time is after shift end — supervisor can review flagged records
+        // Reported time is after shift end - supervisor can review flagged records
       }
     }
 
@@ -344,7 +344,7 @@ export async function selfReportCheckOut(
   }
 }
 
-// ─── GET /api/attendance/today ──────────────────────────────────────────────
+// --- GET /api/attendance/today ----------------------------------------------
 
 export async function getToday(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -373,7 +373,7 @@ export async function getToday(req: Request, res: Response, next: NextFunction):
   }
 }
 
-// ─── POST /api/attendance/excuse ────────────────────────────────────────────
+// --- POST /api/attendance/excuse --------------------------------------------
 
 export async function submitExcuse(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -481,7 +481,7 @@ export async function submitExcuse(req: Request, res: Response, next: NextFuncti
   }
 }
 
-// ─── PATCH /api/attendance/excuse/:leaveId ──────────────────────────────────
+// --- PATCH /api/attendance/excuse/:leaveId ----------------------------------
 
 export async function decideExcuse(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -587,7 +587,7 @@ export async function decideExcuse(req: Request, res: Response, next: NextFuncti
   }
 }
 
-// ─── PATCH /api/attendance/:id/override ─────────────────────────────────────
+// --- PATCH /api/attendance/:id/override -------------------------------------
 
 export async function overrideAttendance(
   req: Request,
@@ -663,7 +663,7 @@ export async function overrideAttendance(
         action: 'ATTENDANCE_OVERRIDDEN',
         tableName: 'AttendanceLog',
         recordId: logId,
-        reason: `Status: ${previousStatus} → ${status}. Reason: ${reason}`,
+        reason: `Status: ${previousStatus} -> ${status}. Reason: ${reason}`,
         ipAddress: req.ip ?? null,
         userAgent: req.headers['user-agent'] ?? null,
       },

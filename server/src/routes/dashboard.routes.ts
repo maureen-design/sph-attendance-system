@@ -12,10 +12,10 @@ const router = Router();
 
 router.use(authenticateToken);
 
-// Personal dashboard — any authenticated user
+// Personal dashboard - any authenticated user
 router.get('/personal', getPersonalDashboard);
 
-// Supervisor dashboards — restricted to SUPER_ADMIN and DEPARTMENT_SUPERVISOR
+// Supervisor dashboards - restricted to SUPER_ADMIN and DEPARTMENT_SUPERVISOR
 router.get(
   '/supervisor',
   requireRole('SUPER_ADMIN', 'DEPARTMENT_SUPERVISOR'),

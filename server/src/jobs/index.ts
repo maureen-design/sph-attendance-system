@@ -1,10 +1,11 @@
-import cron from 'node-cron';
+﻿import cron from 'node-cron';
 import { format, subDays } from 'date-fns';
-import { toZonedTime } from 'date-fns-tz';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { Role } from '@prisma/client';
 import prisma from '../db/prisma.js';
 import { config } from '../config/env.js';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// --- Helpers ----------------------------------------------------------------
 
 function getZonedNow(timezone: string): Date {
   return toZonedTime(new Date(), timezone);
@@ -21,7 +22,7 @@ function logJob(jobName: string, message: string): void {
   }
 }
 
-// ─── Type shapes for findMany results ───────────────────────────────────────
+// --- Type shapes for findMany results ---------------------------------------
 
 type ScheduleRow = {
   userType: string;
@@ -39,7 +40,7 @@ type DeptRow = {
   name: string;
   shiftEnd: string;
   organizationId: string;
-  timezone: string;
+  organization: { timezone: string };
 };
 
 type OrgRow = {
@@ -61,7 +62,7 @@ type DeptForAutoClose = {
   timezone: string;
 };
 
-// ─── JOB 1: Cutoff checker (every 5 minutes) ───────────────────────────────
+// --- JOB 1: Cutoff checker (every 5 minutes) -------------------------------
 
 async function cutoffChecker(): Promise<void> {
   try {
@@ -96,7 +97,7 @@ async function cutoffChecker(): Promise<void> {
               where: {
                 departmentId: dept.id,
                 isActive: true,
-                role: schedule.userType as never,
+                role: schedule.userType as Role,
               },
               select: { id: true, fullName: true, departmentId: true },
             })) as UserRow[];
@@ -126,7 +127,7 @@ async function cutoffChecker(): Promise<void> {
               const supervisors = (await prisma.user.findMany({
                 where: {
                   organizationId: org.id,
-                  OR: [{ supervisedDept: { some: { id: dept.id } } }, { role: 'SUPER_ADMIN' }],
+                  OR: [{ supervisedDept: { some: { id: dept.id } } }, { role: Role.SUPER_ADMIN }],
                 },
                 select: { id: true },
               })) as { id: string }[];
@@ -153,7 +154,7 @@ async function cutoffChecker(): Promise<void> {
   }
 }
 
-// ─── JOB 2: Checkout reminder (every 5 minutes) ─────────────────────────────
+// --- JOB 2: Checkout reminder (every 5 minutes) -----------------------------
 
 async function checkoutReminder(): Promise<void> {
   try {
@@ -164,7 +165,8 @@ async function checkoutReminder(): Promise<void> {
     })) as DeptRow[];
 
     for (const dept of departments) {
-      const now = getZonedNow(dept.timezone);
+      const deptTimezone = dept.organization?.timezone ?? 'Africa/Nairobi';
+      const now = getZonedNow(deptTimezone);
       const nowMins = now.getHours() * 60 + now.getMinutes();
 
       const [endH, endM] = dept.shiftEnd.split(':').map(Number);
@@ -174,7 +176,7 @@ async function checkoutReminder(): Promise<void> {
       // Only notify when 25-35 mins before shift end
       if (diff < 25 || diff > 35) continue;
 
-      const todayDate = getTodayDate(dept.timezone);
+      const todayDate = getTodayDate(deptTimezone);
 
       const users = (await prisma.user.findMany({
         where: { departmentId: dept.id, isActive: true },
@@ -211,7 +213,7 @@ async function checkoutReminder(): Promise<void> {
   }
 }
 
-// ─── JOB 3: Auto-close checkouts (midnight Africa/Nairobi) ─────────────────
+// --- JOB 3: Auto-close checkouts (midnight Africa/Nairobi) -----------------
 
 async function autoCloseCheckouts(): Promise<void> {
   try {
@@ -247,8 +249,9 @@ async function autoCloseCheckouts(): Promise<void> {
         if (!dept) continue;
 
         const [endH, endM] = dept.shiftEnd.split(':').map(Number);
-        const checkOutUtc = new Date(yesterdayStr + 'T00:00:00.000Z');
-        checkOutUtc.setUTCHours(endH, endM, 0, 0);
+        const shiftEndZoned = new Date(yesterdayStr + 'T00:00:00.000Z');
+        shiftEndZoned.setHours(endH, endM, 0, 0);
+        const checkOutUtc = fromZonedTime(shiftEndZoned, dept.timezone);
 
         await prisma.attendanceLog.update({
           where: { id: log.id },
@@ -277,22 +280,22 @@ async function autoCloseCheckouts(): Promise<void> {
   }
 }
 
-// ─── Scheduler ──────────────────────────────────────────────────────────────
+// --- Scheduler --------------------------------------------------------------
 
 export function startJobs(): void {
   if (config.NODE_ENV === 'test') return;
 
-  // Cutoff checker — every 5 minutes
+  // Cutoff checker - every 5 minutes
   cron.schedule('*/5 * * * *', () => {
     void cutoffChecker();
   });
 
-  // Checkout reminder — every 5 minutes
+  // Checkout reminder - every 5 minutes
   cron.schedule('*/5 * * * *', () => {
     void checkoutReminder();
   });
 
-  // Auto-close — midnight Africa/Nairobi
+  // Auto-close - midnight Africa/Nairobi
   cron.schedule(
     '0 0 * * *',
     () => {

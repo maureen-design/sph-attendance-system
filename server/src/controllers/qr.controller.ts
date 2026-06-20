@@ -1,9 +1,9 @@
-import type { Request, Response, NextFunction } from 'express';
+﻿import type { Request, Response, NextFunction } from 'express';
 import { getCurrentQRToken, getCurrentWindowExpiry } from '../utils/qr.js';
 import * as respond from '../utils/response.js';
 
 /**
- * GET /api/qr/current — returns current QR token for the user's org.
+ * GET /api/qr/current - returns current QR token for the user's org.
  */
 export function getCurrentQR(req: Request, res: Response, next: NextFunction): void {
   try {

@@ -1,9 +1,9 @@
-import jwt from 'jsonwebtoken';
+﻿import jwt from 'jsonwebtoken';
 import { config } from '../config/env.js';
 
 const QR_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 
-// Dedicated secret for QR tokens — access secret + "qr" suffix
+// Dedicated secret for QR tokens - access secret + "qr" suffix
 const QR_SECRET = config.JWT_ACCESS_SECRET + ':qr';
 
 interface QRPayload {

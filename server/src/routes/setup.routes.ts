@@ -10,11 +10,11 @@ import { Role } from '@prisma/client';
 
 const router = Router();
 
-// Public routes — guarded by org count check
+// Public routes - guarded by org count check
 router.get('/status', getStatus);
 router.post('/', setup);
 
-// Protected routes — require Super Admin
+// Protected routes - require Super Admin
 router.post('/departments', authenticateToken, requireRole(Role.SUPER_ADMIN), createDepartments);
 router.post('/cohort', authenticateToken, requireRole(Role.SUPER_ADMIN), createCohort);
 

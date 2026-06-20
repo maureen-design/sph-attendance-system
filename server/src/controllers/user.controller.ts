@@ -1,10 +1,10 @@
-import { Role } from '@prisma/client';
+﻿import { Role } from '@prisma/client';
 import { subDays } from 'date-fns';
 import type { Request, Response, NextFunction } from 'express';
 import prisma from '../db/prisma.js';
 import * as respond from '../utils/response.js';
 
-// ─── Type aliases ───────────────────────────────────────────────────────────
+// --- Type aliases -----------------------------------------------------------
 
 type UserRow = {
   id: string;
@@ -28,7 +28,7 @@ type AttendanceRow = {
   checkOutTime: Date | null;
 };
 
-// ─── ENDPOINT 1: GET /api/users ─────────────────────────────────────────────
+// --- ENDPOINT 1: GET /api/users ---------------------------------------------
 
 export async function getUsers(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -97,7 +97,7 @@ export async function getUsers(req: Request, res: Response, next: NextFunction):
   }
 }
 
-// ─── ENDPOINT 2: GET /api/users/:id ─────────────────────────────────────────
+// --- ENDPOINT 2: GET /api/users/:id -----------------------------------------
 
 export async function getUserById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -159,7 +159,7 @@ export async function getUserById(req: Request, res: Response, next: NextFunctio
   }
 }
 
-// ─── ENDPOINT 3: PATCH /api/users/:id/role ──────────────────────────────────
+// --- ENDPOINT 3: PATCH /api/users/:id/role ----------------------------------
 
 export async function updateUserRole(
   req: Request,
@@ -228,7 +228,7 @@ export async function updateUserRole(
   }
 }
 
-// ─── ENDPOINT 4: PATCH /api/users/:id/deactivate ────────────────────────────
+// --- ENDPOINT 4: PATCH /api/users/:id/deactivate ----------------------------
 
 export async function deactivateUser(
   req: Request,
@@ -281,7 +281,7 @@ export async function deactivateUser(
   }
 }
 
-// ─── ENDPOINT 5: PATCH /api/users/:id/reactivate ────────────────────────────
+// --- ENDPOINT 5: PATCH /api/users/:id/reactivate ----------------------------
 
 export async function reactivateUser(
   req: Request,
@@ -323,7 +323,7 @@ export async function reactivateUser(
   }
 }
 
-// ─── ENDPOINT 6: GET /api/users/:id/attendance ──────────────────────────────
+// --- ENDPOINT 6: GET /api/users/:id/attendance ------------------------------
 
 export async function getUserAttendance(
   req: Request,

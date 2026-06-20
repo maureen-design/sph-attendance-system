@@ -1,8 +1,8 @@
-import type { Request, Response, NextFunction } from 'express';
+﻿import type { Request, Response, NextFunction } from 'express';
 import prisma from '../db/prisma.js';
 import * as respond from '../utils/response.js';
 
-// ─── Type alias for findMany result ─────────────────────────────────────────
+// --- Type alias for findMany result -----------------------------------------
 
 type NotificationRow = {
   id: string;
@@ -14,7 +14,7 @@ type NotificationRow = {
   createdAt: Date;
 };
 
-// ─── GET /api/notifications ─────────────────────────────────────────────────
+// --- GET /api/notifications -------------------------------------------------
 
 export async function getNotifications(
   req: Request,
@@ -41,7 +41,7 @@ export async function getNotifications(
   }
 }
 
-// ─── PATCH /api/notifications/:id/read ──────────────────────────────────────
+// --- PATCH /api/notifications/:id/read --------------------------------------
 
 export async function markAsRead(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -73,7 +73,7 @@ export async function markAsRead(req: Request, res: Response, next: NextFunction
   }
 }
 
-// ─── PATCH /api/notifications/read-all ──────────────────────────────────────
+// --- PATCH /api/notifications/read-all --------------------------------------
 
 export async function markAllAsRead(
   req: Request,

@@ -1,6 +1,5 @@
-import { AttendanceStatus } from '@prisma/client';
-import { format } from 'date-fns';
-import { toZonedTime } from 'date-fns-tz';
+﻿import { AttendanceStatus } from '@prisma/client';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 /**
  * Parses a "HH:mm" time string into hours and minutes.
@@ -11,21 +10,20 @@ function parseTime(timeStr: string): { hours: number; minutes: number } {
 }
 
 /**
- * Builds a Date for today (in the given timezone) at the specified HH:mm.
- * Returns a UTC Date.
+ * Builds a UTC Date for today (in the given timezone) at the specified HH:mm.
+ * The HH:mm is interpreted in the org's local timezone, then converted to UTC.
  */
 function buildTimeOnDate(date: Date, timeStr: string, timezone: string): Date {
   const { hours, minutes } = parseTime(timeStr);
   const zoned = toZonedTime(date, timezone);
   zoned.setHours(hours, minutes, 0, 0);
-  // Convert back: create a UTC date from the zoned components
-  const utcStr = format(zoned, "yyyy-MM-dd'T'HH:mm:ss");
-  return new Date(utcStr + 'Z');
+  // Convert local (zoned) wall-clock time back to a proper UTC instant
+  return fromZonedTime(zoned, timezone);
 }
 
 /**
  * Calculates attendance status based on check-in time and department rules.
- * Pure function — no DB calls.
+ * Pure function - no DB calls.
  */
 export function calculateAttendanceStatus(
   checkInTime: Date | null,
@@ -50,22 +48,22 @@ export function calculateAttendanceStatus(
 
   const checkInMs = checkInTime.getTime();
 
-  // Before early threshold → EARLY
+  // Before early threshold -> EARLY
   if (checkInMs < earlyThreshold.getTime()) {
     return 'EARLY';
   }
 
-  // Within shift start + grace → ON_TIME
+  // Within shift start + grace -> ON_TIME
   if (checkInMs >= earlyThreshold.getTime() && checkInMs <= graceEnd.getTime()) {
     return 'ON_TIME';
   }
 
-  // After grace but before cutoff → LATE
+  // After grace but before cutoff -> LATE
   if (checkInMs > graceEnd.getTime() && checkInMs <= cutoffUtc.getTime()) {
     return 'LATE';
   }
 
-  // After cutoff → LATE (supervisor can override)
+  // After cutoff -> LATE (supervisor can override)
   return 'LATE';
 }
 

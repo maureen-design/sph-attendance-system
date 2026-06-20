@@ -18,5 +18,7 @@ export const config = {
   JWT_REFRESH_SECRET: requireEnv('JWT_REFRESH_SECRET'),
   CLIENT_URL: requireEnv('CLIENT_URL', 'http://localhost:3000'),
   CORS_ORIGIN: requireEnv('CORS_ORIGIN', 'http://localhost:3000'),
+  RESEND_API_KEY: process.env.RESEND_API_KEY ?? '',
+  EMAIL_FROM: process.env.EMAIL_FROM ?? 'SPH Attendance <noreply@sphattendance.com>',
   isDev: requireEnv('NODE_ENV', 'development') === 'development',
 } as const;

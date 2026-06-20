@@ -1,11 +1,11 @@
-import { Role, type AttendanceStatus } from '@prisma/client';
+﻿import { Role, type AttendanceStatus } from '@prisma/client';
 import { format, subDays, eachDayOfInterval, isWeekend, startOfWeek, endOfWeek } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import type { Request, Response, NextFunction } from 'express';
 import prisma from '../db/prisma.js';
 import * as respond from '../utils/response.js';
 
-// ─── Type aliases for findMany results (Prisma v6 type workaround) ──────────
+// --- Type aliases for findMany results (Prisma v6 type workaround) ----------
 
 type AnyLog = {
   id: string;
@@ -56,7 +56,7 @@ type SummaryLogRow = AnyLog & {
   };
 };
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// --- Helpers ----------------------------------------------------------------
 
 function getTodayStr(timezone: string): string {
   const zoned = toZonedTime(new Date(), timezone);
@@ -83,7 +83,7 @@ async function resolveSupervisorDeptId(userId: string): Promise<string | undefin
   return u?.departmentId ?? undefined;
 }
 
-// ─── ENDPOINT 1: GET /api/dashboard/supervisor ──────────────────────────────
+// --- ENDPOINT 1: GET /api/dashboard/supervisor ------------------------------
 
 export async function getSupervisorDashboard(
   req: Request,
@@ -120,7 +120,7 @@ export async function getSupervisorDashboard(
     const scopedDeptId =
       userRole === Role.DEPARTMENT_SUPERVISOR ? await resolveSupervisorDeptId(userId) : queryDeptId;
 
-    // Fetch logs — explicit branches avoid spread breaking Prisma type inference
+    // Fetch logs - explicit branches avoid spread breaking Prisma type inference
     const logInclude = {
       user: { select: { id: true, fullName: true, role: true, cohortId: true } },
     } as const;
@@ -212,7 +212,7 @@ export async function getSupervisorDashboard(
   }
 }
 
-// ─── ENDPOINT 2: GET /api/dashboard/supervisor/live ─────────────────────────
+// --- ENDPOINT 2: GET /api/dashboard/supervisor/live -------------------------
 
 export async function getLiveDashboard(
   req: Request,
@@ -296,7 +296,7 @@ export async function getLiveDashboard(
   }
 }
 
-// ─── ENDPOINT 3: GET /api/dashboard/supervisor/export ───────────────────────
+// --- ENDPOINT 3: GET /api/dashboard/supervisor/export -----------------------
 
 export async function exportAttendance(
   req: Request,
@@ -430,7 +430,7 @@ export async function exportAttendance(
   }
 }
 
-// ─── ENDPOINT 4: GET /api/dashboard/personal ────────────────────────────────
+// --- ENDPOINT 4: GET /api/dashboard/personal --------------------------------
 
 export async function getPersonalDashboard(
   req: Request,
@@ -462,7 +462,7 @@ export async function getPersonalDashboard(
     const todayDateStr = getTodayStr(orgTimezone);
     const todayDate = new Date(todayDateStr + 'T00:00:00.000Z');
 
-    // Today's log (findUnique — types work)
+    // Today's log (findUnique - types work)
     const today = await prisma.attendanceLog.findUnique({
       where: { userId_date: { userId, date: todayDate } },
     });
@@ -553,7 +553,7 @@ export async function getPersonalDashboard(
   }
 }
 
-// ─── ENDPOINT 5: GET /api/dashboard/supervisor/summary ──────────────────────
+// --- ENDPOINT 5: GET /api/dashboard/supervisor/summary ----------------------
 
 export async function getSupervisorSummary(
   req: Request,

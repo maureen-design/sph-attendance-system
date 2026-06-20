@@ -1,10 +1,10 @@
-import { Role, type AttendanceStatus } from '@prisma/client';
+﻿import { Role, type AttendanceStatus } from '@prisma/client';
 import { format } from 'date-fns';
 import type { Request, Response, NextFunction } from 'express';
 import prisma from '../db/prisma.js';
 import * as respond from '../utils/response.js';
 
-// ─── Type aliases ───────────────────────────────────────────────────────────
+// --- Type aliases -----------------------------------------------------------
 
 type DisputeRow = {
   id: string;
@@ -28,7 +28,7 @@ type DisputeWithRelations = DisputeRow & {
   };
 };
 
-// ─── ENDPOINT 1: POST /api/disputes ─────────────────────────────────────────
+// --- ENDPOINT 1: POST /api/disputes -----------------------------------------
 
 export async function createDispute(
   req: Request,
@@ -49,7 +49,7 @@ export async function createDispute(
       return;
     }
 
-    // 1) Find AttendanceLog — must belong to user
+    // 1) Find AttendanceLog - must belong to user
     const log = await prisma.attendanceLog.findUnique({
       where: { id: attendanceLogId },
     });
@@ -122,7 +122,7 @@ export async function createDispute(
   }
 }
 
-// ─── ENDPOINT 2: GET /api/disputes ──────────────────────────────────────────
+// --- ENDPOINT 2: GET /api/disputes ------------------------------------------
 
 export async function getDisputes(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -176,7 +176,7 @@ export async function getDisputes(req: Request, res: Response, next: NextFunctio
   }
 }
 
-// ─── ENDPOINT 3: PATCH /api/disputes/:id/resolve ────────────────────────────
+// --- ENDPOINT 3: PATCH /api/disputes/:id/resolve ----------------------------
 
 export async function resolveDispute(
   req: Request,
@@ -247,7 +247,7 @@ export async function resolveDispute(
       },
     });
 
-    // 5) If correctedStatus provided → update AttendanceLog
+    // 5) If correctedStatus provided -> update AttendanceLog
     let updatedLog = null;
     if (correctedStatus) {
       updatedLog = await prisma.attendanceLog.update({

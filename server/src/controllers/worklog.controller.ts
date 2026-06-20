@@ -1,11 +1,11 @@
-import { Role } from '@prisma/client';
+﻿import { Role } from '@prisma/client';
 import { format, eachDayOfInterval, isWeekend, startOfMonth, endOfMonth, parse } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import type { Request, Response, NextFunction } from 'express';
 import prisma from '../db/prisma.js';
 import * as respond from '../utils/response.js';
 
-// ─── Type aliases ───────────────────────────────────────────────────────────
+// --- Type aliases -----------------------------------------------------------
 
 type WorkLogRow = {
   id: string;
@@ -23,7 +23,7 @@ type WorkLogRow = {
 
 type AttacheeRow = { id: string; fullName: string; departmentId: string | null };
 
-// ─── ENDPOINT 1: POST /api/worklogs ─────────────────────────────────────────
+// --- ENDPOINT 1: POST /api/worklogs -----------------------------------------
 
 export async function createWorkLog(
   req: Request,
@@ -106,7 +106,7 @@ export async function createWorkLog(
   }
 }
 
-// ─── ENDPOINT 2: GET /api/worklogs/my ───────────────────────────────────────
+// --- ENDPOINT 2: GET /api/worklogs/my ---------------------------------------
 
 export async function getMyWorkLogs(
   req: Request,
@@ -144,7 +144,7 @@ export async function getMyWorkLogs(
   }
 }
 
-// ─── ENDPOINT 3: GET /api/worklogs/department ───────────────────────────────
+// --- ENDPOINT 3: GET /api/worklogs/department -------------------------------
 
 export async function getDepartmentWorkLogs(
   req: Request,
@@ -224,7 +224,7 @@ export async function getDepartmentWorkLogs(
   }
 }
 
-// ─── ENDPOINT 4: PATCH /api/worklogs/:id/feedback ───────────────────────────
+// --- ENDPOINT 4: PATCH /api/worklogs/:id/feedback ---------------------------
 
 export async function addFeedback(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -276,7 +276,7 @@ export async function addFeedback(req: Request, res: Response, next: NextFunctio
   }
 }
 
-// ─── ENDPOINT 5: GET /api/worklogs/missing ──────────────────────────────────
+// --- ENDPOINT 5: GET /api/worklogs/missing ----------------------------------
 
 export async function getMissingWorkLogs(
   req: Request,
