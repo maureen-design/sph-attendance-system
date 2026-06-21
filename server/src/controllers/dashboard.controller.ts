@@ -647,7 +647,11 @@ export async function getSupervisorSummary(
     const perPerson = Array.from(logsByUser.entries()).map(([uid, userLogs]) => {
       const firstLog = userLogs[0];
       const presentDays = userLogs.filter(
-        (l: SummaryLogRow) => l.status === 'ON_TIME' || l.status === 'EARLY' || l.status === 'LATE',
+        (l: SummaryLogRow) =>
+          l.status === 'ON_TIME' ||
+          l.status === 'EARLY' ||
+          l.status === 'LATE' ||
+          l.status === 'LEFT_EARLY',
       ).length;
       const lateDays = userLogs.filter((l: SummaryLogRow) => l.status === 'LATE').length;
       const excusedDays = userLogs.filter(

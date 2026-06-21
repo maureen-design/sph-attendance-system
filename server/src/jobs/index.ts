@@ -249,8 +249,9 @@ async function autoCloseCheckouts(): Promise<void> {
         if (!dept) continue;
 
         const [endH, endM] = dept.shiftEnd.split(':').map(Number);
-        const shiftEndZoned = new Date(yesterdayStr + 'T00:00:00.000Z');
-        shiftEndZoned.setHours(endH, endM, 0, 0);
+        const shiftEndZoned = new Date(
+          `${yesterdayStr}T${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}:00.000Z`,
+        );
         const checkOutUtc = fromZonedTime(shiftEndZoned, dept.timezone);
 
         await prisma.attendanceLog.update({
