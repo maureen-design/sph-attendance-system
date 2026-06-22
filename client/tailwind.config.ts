@@ -39,11 +39,16 @@ const config: Config = {
           '0%': { opacity: '0', transform: 'translateY(16px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        'gradient-shift': {
+          '0%, 100%': { backgroundColor: '#0F172A' },
+          '50%': { backgroundColor: '#1E293B' },
+        },
       },
       animation: {
         'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
         'fade-in': 'fade-in 0.3s ease-out forwards',
         'slide-up': 'slide-up 0.4s ease-out forwards',
+        'gradient-shift': 'gradient-shift 8s ease-in-out infinite',
       },
     },
   },

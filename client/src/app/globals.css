@@ -2,42 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Design system CSS variables ── */
 :root {
-  --background: #0f172a;
-  --surface: #1e293b;
+  --background: #0F172A;
+  --surface: #1E293B;
   --surface-elevated: #334155;
   --border: #334155;
-  --text-primary: #f8f9fa;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #F8F9FA;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
 }
 
 .light {
-  --background: #f8f9fa;
-  --surface: #ffffff;
-  --surface-elevated: #f1f5f9;
-  --border: #e2e8f0;
-  --text-primary: #0f172a;
+  --background: #F8F9FA;
+  --surface: #FFFFFF;
+  --border: #E2E8F0;
+  --text-primary: #0F172A;
   --text-secondary: #475569;
-  --text-muted: #94a3b8;
 }
 
-/* ── Base styles ── */
+* {
+  box-sizing: border-box;
+  border-color: var(--border);
+}
+
 body {
   background-color: var(--background);
   color: var(--text-primary);
-  transition:
-    background-color 200ms ease,
-    color 200ms ease;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 200ms, color 200ms;
+  font-family: var(--font-sans), sans-serif;
 }
 
-/* ── Custom scrollbar (dark default) ── */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -45,42 +41,6 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--surface-elevated);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
-
-/* Firefox */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--surface-elevated) var(--background);
-}
-
-/* ── Utility classes ── */
-@layer utilities {
-  .surface {
-    background-color: var(--surface);
-  }
-  .surface-elevated {
-    background-color: var(--surface-elevated);
-  }
-  .border-subtle {
-    border-color: var(--border);
-  }
-  .text-secondary {
-    color: var(--text-secondary);
-  }
-  .text-muted {
-    color: var(--text-muted);
-  }
-}
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-body {
-  @apply bg-sph-light text-sph-dark antialiased;
+  background: var(--border);
+  border-radius: 3px;
 }
