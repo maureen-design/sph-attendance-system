@@ -81,11 +81,33 @@ export function CheckInButton({
   checkInTime,
   checkOutTime,
   onCheckedIn,
+  role,
 }: CheckInButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [qrToken, setQrToken] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // ── SUPER ADMIN: show admin card instead of check-in ──
+  if (role === 'SUPER_ADMIN') {
+    return (
+      <div className="flex flex-col items-center gap-4 text-center">
+        <Shield className="h-12 w-12 text-sph-blue" />
+        <div>
+          <h3 className="text-lg font-semibold text-[var(--text-primary)]">System Administrator</h3>
+          <p className="mt-1 text-sm text-secondary">
+            You have full access to manage SPH Attendance.
+          </p>
+        </div>
+        <a
+          href="/dashboard/admin"
+          className="rounded-xl bg-sph-blue px-6 py-2.5 text-sm font-semibold text-white transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-sph-blue/25"
+        >
+          Go to Admin Dashboard →
+        </a>
+      </div>
+    );
+  }
 
   const handleCheckIn = async () => {
     if (!qrToken.trim()) return;
@@ -99,7 +121,15 @@ export function CheckInButton({
       setDialogOpen(false);
       setQrToken('');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Check-in failed');
+      const message = err instanceof ApiError ? err.message : 'Check-in failed';
+      // Replace technical error with friendly admin message
+      if (message.toLowerCase().includes('user') && message.toLowerCase().includes('not found')) {
+        setError(
+          'Check-in is not available for admin accounts. Admins manage the system but do not check in.',
+        );
+      } else {
+        setError(message);
+      }
     } finally {
       setIsSubmitting(false);
     }

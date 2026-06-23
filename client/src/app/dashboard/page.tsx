@@ -156,6 +156,7 @@ export default function DashboardPage() {
             checkInTime={checkInTime}
             checkOutTime={checkOutTime}
             onCheckedIn={handleCheckedIn}
+            role={data?.user.role ?? authUser?.role ?? ''}
           />
         )}
       </div>
