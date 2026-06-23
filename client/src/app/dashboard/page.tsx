@@ -117,8 +117,7 @@ export default function DashboardPage() {
     setCheckInTime(log.checkInTime);
   };
 
-  const firstName =
-    data?.user.fullName?.split(' ')[0] ?? authUser?.fullName?.split(' ')[0] ?? 'User';
+  const firstName = data?.user?.fullName?.split(' ')[0] ?? authUser?.fullName?.split(' ')[0] ?? '';
   const department = data?.user.department?.name ?? '';
   const cohort = data?.user.cohort?.name;
   const subtitle = [department, cohort].filter(Boolean).join(' · ');
@@ -133,7 +132,7 @@ export default function DashboardPage() {
           <>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">
-                Habari, {firstName}
+                {firstName ? `Habari, ${firstName}` : 'Habari'}
               </h1>
               <span
                 className={`h-2.5 w-2.5 rounded-full ${data ? 'bg-sph-green' : 'bg-sph-amber'}`}

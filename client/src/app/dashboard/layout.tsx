@@ -138,7 +138,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         {/* Logo */}
         <div className="flex flex-col px-5 pt-6 pb-8">
           <span className="text-lg font-bold text-sph-green">SPH</span>
-          <span className="text-xs text-muted">Swahilipot Hub</span>
+          <span className="mt-1 text-xs text-muted">Swahilipot Hub</span>
         </div>
 
         {/* Nav */}
