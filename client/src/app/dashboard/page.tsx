@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Zap } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { get } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -181,8 +182,8 @@ export default function DashboardPage() {
             <Skeleton className="h-16 rounded-lg bg-[var(--surface-elevated)]" />
           ) : (
             <div className="flex flex-col gap-1">
-              <p className="text-2xl font-bold text-[var(--text-primary)]">
-                🔥 {data?.streak ?? 0}
+              <p className="flex items-center gap-1 text-2xl font-bold text-[var(--text-primary)]">
+                <Zap className="h-4 w-4 text-sph-amber" /> {data?.streak ?? 0}
               </p>
               <p className="text-xs text-muted">
                 {(data?.streak ?? 0) > 0 ? 'days on time' : 'Start your streak today'}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Fingerprint } from 'lucide-react';
+import { Fingerprint, Shield } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +24,7 @@ interface CheckInButtonProps {
   checkInTime: string | null;
   checkOutTime: string | null;
   onCheckedIn: (log: { id: string; status: string; checkInTime: string }) => void;
+  role: string;
 }
 
 interface CheckInResponse {
