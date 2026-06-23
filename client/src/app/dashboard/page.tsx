@@ -117,7 +117,16 @@ export default function DashboardPage() {
     setCheckInTime(log.checkInTime);
   };
 
-  const firstName = data?.user?.fullName?.split(' ')[0] ?? authUser?.fullName?.split(' ')[0] ?? '';
+  const firstName =
+    data?.user?.fullName?.split(' ')[0] ??
+    authUser?.fullName?.split(' ')[0] ??
+    authUser?.email?.split('@')[0] ??
+    '';
+
+  // Debug logging
+  console.log('data?.user:', data?.user);
+  console.log('authUser:', authUser);
+  console.log('firstName:', firstName);
   const department = data?.user.department?.name ?? '';
   const cohort = data?.user.cohort?.name;
   const subtitle = [department, cohort].filter(Boolean).join(' · ');

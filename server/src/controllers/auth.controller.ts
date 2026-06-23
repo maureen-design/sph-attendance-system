@@ -28,8 +28,8 @@ function validateLogin(body: Record<string, unknown>): string[] {
   const errors: string[] = [];
   if (!body.email || typeof body.email !== 'string') errors.push('email is required');
   if (!body.password || typeof body.password !== 'string') errors.push('password is required');
-  if (!body.organizationId || typeof body.organizationId !== 'string')
-    errors.push('organizationId is required');
+  if (!body.orgShortName || typeof body.orgShortName !== 'string')
+    errors.push('orgShortName is required');
   return errors;
 }
 
@@ -159,15 +159,25 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       return;
     }
 
-    const { email, password, organizationId } = req.body as {
+    const { email, password, orgShortName } = req.body as {
       email: string;
       password: string;
-      organizationId: string;
+      orgShortName: string;
     };
 
-    // 1) Find user
+    // 1) Look up organization by short name
+    const org = await prisma.organization.findFirst({
+      where: { shortName: { equals: orgShortName, mode: 'insensitive' } },
+    });
+
+    if (!org) {
+      respond.error(res, 'Invalid credentials', 401);
+      return;
+    }
+
+    // 2) Find user
     const user = await prisma.user.findUnique({
-      where: { email_organizationId: { email, organizationId } },
+      where: { email_organizationId: { email, organizationId: org.id } },
     });
 
     if (!user) {

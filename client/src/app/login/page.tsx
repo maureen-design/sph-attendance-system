@@ -115,7 +115,7 @@ export default function LoginPage() {
                 placeholder="e.g. SPH"
                 className="rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition-all focus:border-sph-blue focus:ring-1 focus:ring-sph-blue"
               />
-              <span className="text-xs text-muted">Ask your admin for your organization name</span>
+              <span className="text-xs text-muted">Enter your organization short name</span>
             </div>
 
             {/* Password */}
