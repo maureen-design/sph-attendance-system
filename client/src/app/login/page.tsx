@@ -97,7 +97,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="rounded-xl border border-[var(--border)] surface-elevated px-4 py-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none transition-all focus:border-sph-blue focus:ring-1 focus:ring-sph-blue"
+                className="rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition-all focus:border-sph-blue focus:ring-1 focus:ring-sph-blue"
               />
             </div>
 
@@ -113,7 +113,7 @@ export default function LoginPage() {
                 value={organization}
                 onChange={(e) => setOrganization(e.target.value)}
                 placeholder="e.g. SPH"
-                className="rounded-xl border border-[var(--border)] surface-elevated px-4 py-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none transition-all focus:border-sph-blue focus:ring-1 focus:ring-sph-blue"
+                className="rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none transition-all focus:border-sph-blue focus:ring-1 focus:ring-sph-blue"
               />
               <span className="text-xs text-muted">Ask your admin for your organization name</span>
             </div>
@@ -136,7 +136,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-xl border border-[var(--border)] surface-elevated px-4 py-3 pr-12 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none transition-all focus:border-sph-blue focus:ring-1 focus:ring-sph-blue"
+                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] px-4 py-3 pr-12 text-sm text-white placeholder-slate-500 outline-none transition-all focus:border-sph-blue focus:ring-1 focus:ring-sph-blue"
                 />
                 <button
                   type="button"

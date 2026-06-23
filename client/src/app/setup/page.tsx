@@ -202,9 +202,9 @@ export default function SetupPage() {
     try {
       // 1) Create organization + admin
       const setupRes = await post<SetupResponse>('/setup', {
-        organizationName: orgName,
-        organizationShortName: shortName,
-        contactEmail,
+        orgName,
+        orgShortName: shortName,
+        orgEmail: contactEmail,
         timezone: timezone || 'Africa/Nairobi',
         adminFullName: adminName,
         adminEmail,
