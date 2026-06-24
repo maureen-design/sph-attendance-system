@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Fingerprint, Shield } from 'lucide-react';
+import { Fingerprint, Shield, Clock } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,10 @@ interface CheckInButtonProps {
   checkInTime: string | null;
   checkOutTime: string | null;
   onCheckedIn: (log: { id: string; status: string; checkInTime: string }) => void;
+  onCheckedOut: (log: { id: string; status: string; checkOutTime: string }) => void;
   role: string;
+  departmentShiftEnd?: string;
+  checkInTimeIso?: string | null;
 }
 
 interface CheckInResponse {
@@ -33,6 +36,25 @@ interface CheckInResponse {
     status: string;
     checkInTime: string;
     date: string;
+  };
+}
+
+interface CheckOutResponse {
+  attendanceLog: {
+    id: string;
+    status: string;
+    checkInTime: string;
+    checkOutTime: string;
+  };
+}
+
+interface SelfReportCheckOutResponse {
+  attendanceLog: {
+    id: string;
+    status: string;
+    checkInTime: string;
+    checkOutTime: string;
+    checkOutMethod: string;
   };
 }
 
@@ -81,12 +103,18 @@ export function CheckInButton({
   checkInTime,
   checkOutTime,
   onCheckedIn,
+  onCheckedOut,
   role,
+  departmentShiftEnd,
+  checkInTimeIso,
 }: CheckInButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<'checkin' | 'checkout' | 'self-report'>('checkin');
   const [qrToken, setQrToken] = useState('');
+  const [selfReportTime, setSelfReportTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [timeValidationError, setTimeValidationError] = useState('');
 
   // ── SUPER ADMIN: show admin card instead of check-in ──
   if (role === 'SUPER_ADMIN') {
@@ -135,6 +163,88 @@ export function CheckInButton({
     }
   };
 
+  const handleCheckOut = async () => {
+    if (!qrToken.trim()) return;
+    setError('');
+    setIsSubmitting(true);
+    try {
+      const res = await post<CheckOutResponse>('/attendance/checkout', {
+        qrToken: qrToken.trim(),
+      });
+      onCheckedOut(res.attendanceLog);
+      setDialogOpen(false);
+      setQrToken('');
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Check-out failed';
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSelfReportCheckOut = async () => {
+    if (!selfReportTime) return;
+    setError('');
+    setIsSubmitting(true);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const res = await post<SelfReportCheckOutResponse>('/attendance/checkout/self-report', {
+        date: today,
+        reportedCheckOutTime: selfReportTime,
+      });
+      onCheckedOut(res.attendanceLog);
+      setDialogOpen(false);
+      setSelfReportTime('');
+      setTimeValidationError('');
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Self-report failed';
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Validate self-report time
+  useEffect(() => {
+    if (dialogMode !== 'self-report' || !selfReportTime) {
+      setTimeValidationError('');
+      return;
+    }
+
+    const validationErrors: string[] = [];
+
+    // Check against shift end
+    if (departmentShiftEnd) {
+      const shiftEndParts = departmentShiftEnd.split(':');
+      const shiftEndHours = parseInt(shiftEndParts[0], 10);
+      const shiftEndMinutes = parseInt(shiftEndParts[1], 10);
+      const shiftEndTotalMinutes = shiftEndHours * 60 + shiftEndMinutes;
+
+      const timeParts = selfReportTime.split(':');
+      const hours = parseInt(timeParts[0], 10);
+      const minutes = parseInt(timeParts[1], 10);
+      const totalMinutes = hours * 60 + minutes;
+
+      if (totalMinutes > shiftEndTotalMinutes) {
+        validationErrors.push('Time cannot be after shift end');
+      }
+    }
+
+    // Check against check-in time
+    if (checkInTimeIso) {
+      const checkInDate = new Date(checkInTimeIso);
+      const today = new Date();
+      const [hours, minutes] = selfReportTime.split(':').map(Number);
+      const reportedDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes);
+
+      if (reportedDate <= checkInDate) {
+        validationErrors.push('Time must be after check-in time');
+      }
+    }
+
+    setTimeValidationError(validationErrors.length > 0 ? validationErrors.join('. ') : '');
+  }, [selfReportTime, dialogMode, departmentShiftEnd, checkInTimeIso]);
+
   // ── CHECKED OUT ──
   if (phase === 'checked-out') {
     return (
@@ -161,8 +271,9 @@ export function CheckInButton({
         <button
           type="button"
           onClick={() => {
+            setDialogMode('checkout');
             setDialogOpen(true);
-            setQrToken('checkout');
+            setQrToken('');
           }}
           className="flex h-20 w-20 flex-col items-center justify-center rounded-full surface-elevated border border-[var(--border)] text-xs text-secondary transition-all hover:-translate-y-0.5 hover:shadow-lg"
         >
@@ -180,6 +291,7 @@ export function CheckInButton({
       <button
         type="button"
         onClick={() => {
+          setDialogMode('checkin');
           setDialogOpen(true);
           setQrToken('');
         }}
@@ -195,24 +307,57 @@ export function CheckInButton({
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Check In</DialogTitle>
-            <DialogDescription>Enter the QR token displayed at the door scanner.</DialogDescription>
+            <DialogTitle>
+              {dialogMode === 'checkin' ? 'Check In' : dialogMode === 'checkout' ? 'Check Out' : 'Report Check-Out Time'}
+            </DialogTitle>
+            <DialogDescription>
+              {dialogMode === 'checkin'
+                ? 'Enter the QR token displayed at the door scanner.'
+                : dialogMode === 'checkout'
+                  ? 'Enter the QR token displayed at the door scanner to check out.'
+                  : 'Enter the time you left yesterday.'}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-4 py-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="qrToken">QR Token</Label>
-              <Input
-                id="qrToken"
-                value={qrToken}
-                onChange={(e) => setQrToken(e.target.value)}
-                placeholder="Enter QR token"
-                className="h-11 rounded-xl border-[var(--border)] surface-elevated px-4 text-[var(--text-primary)]"
-              />
-            </div>
+            {dialogMode === 'self-report' ? (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="selfReportTime">Check-Out Time</Label>
+                <Input
+                  id="selfReportTime"
+                  type="time"
+                  value={selfReportTime}
+                  onChange={(e) => setSelfReportTime(e.target.value)}
+                  className="h-11 rounded-xl border-[var(--border)] surface-elevated px-4 text-[var(--text-primary)]"
+                />
+                {departmentShiftEnd && (
+                  <p className="text-xs text-muted">
+                    Shift ends at {departmentShiftEnd}. Time cannot be after shift end.
+                  </p>
+                )}
+                {timeValidationError && (
+                  <p className="text-xs text-sph-red">{timeValidationError}</p>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="qrToken">QR Token</Label>
+                <Input
+                  id="qrToken"
+                  value={qrToken}
+                  onChange={(e) => setQrToken(e.target.value)}
+                  placeholder="Enter QR token"
+                  className="h-11 rounded-xl border-[var(--border)] surface-elevated px-4 text-[var(--text-primary)]"
+                />
+              </div>
+            )}
 
             <p className="text-xs text-muted">
-              In production, your camera will scan the door QR code automatically.
+              {dialogMode === 'checkin'
+                ? 'In production, your camera will scan the door QR code automatically.'
+                : dialogMode === 'checkout'
+                  ? 'In production, your camera will scan the door QR code automatically.'
+                  : 'This will be flagged for supervisor review.'}
             </p>
 
             {error && (
@@ -222,17 +367,27 @@ export function CheckInButton({
             )}
 
             <Button
-              onClick={handleCheckIn}
-              disabled={isSubmitting || !qrToken.trim()}
+              onClick={
+                dialogMode === 'checkin'
+                  ? handleCheckIn
+                  : dialogMode === 'checkout'
+                    ? handleCheckOut
+                    : handleSelfReportCheckOut
+              }
+              disabled={
+                isSubmitting ||
+                (dialogMode !== 'self-report' && !qrToken.trim()) ||
+                (dialogMode === 'self-report' && (!selfReportTime || !!timeValidationError))
+              }
               className="h-11 w-full rounded-xl"
             >
               {isSubmitting ? (
                 <>
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Checking in...
+                  {dialogMode === 'checkin' ? 'Checking in...' : dialogMode === 'checkout' ? 'Checking out...' : 'Submitting...'}
                 </>
               ) : (
-                'Confirm Check In'
+                dialogMode === 'checkin' ? 'Confirm Check In' : dialogMode === 'checkout' ? 'Confirm Check Out' : 'Submit Report'
               )}
             </Button>
           </div>

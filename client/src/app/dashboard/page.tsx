@@ -18,7 +18,7 @@ interface DashboardData {
     fullName: string;
     email: string;
     role: string;
-    department?: { name: string };
+    department?: { name: string; shiftEnd: string };
     cohort?: { name: string };
   };
   today: {
@@ -72,6 +72,15 @@ function CardSkeleton() {
   );
 }
 
+function CheckInButtonSkeleton() {
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <Skeleton className="h-20 w-20 rounded-full bg-[var(--surface-elevated)]" />
+      <Skeleton className="h-4 w-24 rounded bg-[var(--surface-elevated)]" />
+    </div>
+  );
+}
+
 // ── Page ──
 
 export default function DashboardPage() {
@@ -117,16 +126,17 @@ export default function DashboardPage() {
     setCheckInTime(log.checkInTime);
   };
 
+  const handleCheckedOut = (log: { id: string; status: string; checkOutTime: string }) => {
+    setPhase('checked-out');
+    setCheckOutTime(log.checkOutTime);
+  };
+
   const firstName =
     data?.user?.fullName?.split(' ')[0] ??
     authUser?.fullName?.split(' ')[0] ??
     authUser?.email?.split('@')[0] ??
     '';
 
-  // Debug logging
-  console.log('data?.user:', data?.user);
-  console.log('authUser:', authUser);
-  console.log('firstName:', firstName);
   const department = data?.user.department?.name ?? '';
   const cohort = data?.user.cohort?.name;
   const subtitle = [department, cohort].filter(Boolean).join(' · ');
@@ -156,7 +166,7 @@ export default function DashboardPage() {
       {/* ── Section B: Check-In Card ── */}
       <div className="rounded-2xl surface p-6">
         {isLoading ? (
-          <CardSkeleton />
+          <CheckInButtonSkeleton />
         ) : (
           <CheckInButton
             phase={phase}
@@ -164,7 +174,10 @@ export default function DashboardPage() {
             checkInTime={checkInTime}
             checkOutTime={checkOutTime}
             onCheckedIn={handleCheckedIn}
+            onCheckedOut={handleCheckedOut}
             role={data?.user.role ?? authUser?.role ?? ''}
+            departmentShiftEnd={data?.user.department?.shiftEnd}
+            checkInTimeIso={checkInTime}
           />
         )}
       </div>

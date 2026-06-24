@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { LayoutDashboard, Bell, BookOpen, History, User, LogOut } from 'lucide-react';
 import { AuthGuard } from '@/components/guards/AuthGuard';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAuth } from '@/context/AuthContext';
 
 function getInitials(name: string): string {
@@ -72,7 +73,9 @@ function MobileNavItem({
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
-      <DashboardShell>{children}</DashboardShell>
+      <ErrorBoundary>
+        <DashboardShell>{children}</DashboardShell>
+      </ErrorBoundary>
     </AuthGuard>
   );
 }
@@ -90,40 +93,46 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const navItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Home', match: '/dashboard' },
-    {
-      href: '/dashboard/announcements',
-      icon: Bell,
-      label: 'Announcements',
-      match: '/dashboard/announcements',
-    },
-    ...(isAttachee
-      ? [
-          {
-            href: '/dashboard/worklog',
-            icon: BookOpen,
-            label: 'Work Log',
-            match: '/dashboard/worklog',
-          },
-        ]
-      : []),
-    { href: '/dashboard/profile', icon: User, label: 'Profile', match: '/dashboard/profile' },
+    // TODO: Uncomment when announcements page is implemented
+    // {
+    //   href: '/dashboard/announcements',
+    //   icon: Bell,
+    //   label: 'Announcements',
+    //   match: '/dashboard/announcements',
+    // },
+    // TODO: Uncomment when worklog page is implemented
+    // ...(isAttachee
+    //   ? [
+    //       {
+    //         href: '/dashboard/worklog',
+    //         icon: BookOpen,
+    //         label: 'Work Log',
+    //         match: '/dashboard/worklog',
+    //       },
+    //     ]
+    //   : []),
+    // TODO: Uncomment when profile page is implemented
+    // { href: '/dashboard/profile', icon: User, label: 'Profile', match: '/dashboard/profile' },
   ];
 
   const mobileNavItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Home', match: '/dashboard' },
-    {
-      href: '/dashboard/announcements',
-      icon: Bell,
-      label: 'Alerts',
-      match: '/dashboard/announcements',
-    },
-    {
-      href: isAttachee ? '/dashboard/worklog' : '/dashboard',
-      icon: isAttachee ? BookOpen : History,
-      label: isAttachee ? 'Log' : 'History',
-      match: isAttachee ? '/dashboard/worklog' : '/dashboard/history',
-    },
-    { href: '/dashboard/profile', icon: User, label: 'Profile', match: '/dashboard/profile' },
+    // TODO: Uncomment when announcements page is implemented
+    // {
+    //   href: '/dashboard/announcements',
+    //   icon: Bell,
+    //   label: 'Alerts',
+    //   match: '/dashboard/announcements',
+    // },
+    // TODO: Uncomment when worklog/history pages are implemented
+    // {
+    //   href: isAttachee ? '/dashboard/worklog' : '/dashboard',
+    //   icon: isAttachee ? BookOpen : History,
+    //   label: isAttachee ? 'Log' : 'History',
+    //   match: isAttachee ? '/dashboard/worklog' : '/dashboard/history',
+    // },
+    // TODO: Uncomment when profile page is implemented
+    // { href: '/dashboard/profile', icon: User, label: 'Profile', match: '/dashboard/profile' },
   ];
 
   const handleLogout = async () => {
@@ -137,8 +146,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <aside className="hidden w-60 shrink-0 flex-col border-r border-[var(--border)] surface lg:flex">
         {/* Logo */}
         <div className="flex flex-col px-5 pt-6 pb-8">
-          <span className="text-lg font-bold text-sph-green">SPH</span>
-          <span className="mt-1 text-xs text-muted">Swahilipot Hub</span>
+          <img
+            src="/logo/swahilipot.png"
+            alt="Swahilipot Hub"
+            className="h-8 w-auto"
+          />
         </div>
 
         {/* Nav */}
@@ -180,7 +192,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
         {/* Mobile top bar */}
         <header className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3 lg:hidden">
-          <span className="text-sm font-bold text-sph-green">SPH</span>
+          <img
+            src="/logo/swahilipot.png"
+            alt="Swahilipot Hub"
+            className="h-6 w-auto"
+          />
           <span className="text-xs text-muted">{firstName}</span>
         </header>
 

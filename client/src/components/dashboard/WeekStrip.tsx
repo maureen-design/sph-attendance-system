@@ -23,6 +23,8 @@ function getStatusColor(status: string | null): string {
     case 'ABSENT_EXCUSE_PENDING':
     case 'UNRESOLVED':
       return 'bg-sph-red';
+    case 'DISPUTED':
+      return 'bg-[#64748B]';
     default:
       return 'surface-elevated border border-[var(--border)]';
   }

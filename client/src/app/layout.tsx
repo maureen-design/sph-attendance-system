@@ -13,6 +13,10 @@ export const metadata: Metadata = {
   title: 'SPH Attendance',
   description: 'Presence, tracked with dignity.',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/logo/swahilipot.png',
+    apple: '/logo/swahilipot.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

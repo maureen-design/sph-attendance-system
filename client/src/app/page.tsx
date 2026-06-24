@@ -5,10 +5,11 @@ export default function Home() {
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-sph-dark px-6">
       <div className="flex flex-col items-center text-center">
         <div className="mb-6 flex flex-col items-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-sph-green/30 bg-sph-green/10">
-            <span className="text-xl font-bold text-sph-green">SPH</span>
-          </div>
-          <span className="mt-2 text-sm text-slate-400">Swahilipot Hub</span>
+          <img
+            src="/logo/swahilipot.png"
+            alt="Swahilipot Hub"
+            className="h-16 w-auto"
+          />
         </div>
 
         <h1>
