@@ -4,6 +4,90 @@ import prisma from '../db/prisma.js';
 import { hashPassword } from '../utils/hash.js';
 import * as respond from '../utils/response.js';
 
+// --- Admin setup wizard endpoints ----------------------------------------------
+
+// --- POST /api/setup/organization ----------------------------------------------
+
+export async function createOrganization(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { name, timezone, logoUrl } = req.body as {
+      name?: string;
+      timezone?: string;
+      logoUrl?: string;
+    };
+
+    const fieldErrors: string[] = [];
+    if (!name || typeof name !== 'string') fieldErrors.push('name is required');
+    if (!timezone || typeof timezone !== 'string') fieldErrors.push('timezone is required');
+
+    if (fieldErrors.length > 0) {
+      respond.error(res, fieldErrors.join(', '), 400);
+      return;
+    }
+
+    const organizationId = req.user!.organizationId;
+
+    // Check if organization exists (update) or create new
+    // During first-time setup, organizationId may be null
+    let existing = null;
+    if (organizationId) {
+      existing = await prisma.organization.findUnique({
+        where: { id: organizationId },
+      });
+    }
+
+    let org;
+    if (existing) {
+      org = await prisma.organization.update({
+        where: { id: organizationId },
+        data: {
+          name: name!,
+          timezone: timezone!,
+          logoUrl: logoUrl ?? null,
+        },
+      });
+    } else {
+      org = await prisma.organization.create({
+        data: {
+          name: name!,
+          shortName: name.substring(0, 10).toUpperCase(),
+          email: req.user!.email,
+          timezone: timezone!,
+          logoUrl: logoUrl ?? null,
+        },
+      });
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        organizationId: org.id,
+        actorId: req.user!.id,
+        action: existing ? 'ORGANIZATION_UPDATED' : 'ORGANIZATION_CREATED',
+        tableName: 'Organization',
+        recordId: org.id,
+        ipAddress: req.ip ?? null,
+        userAgent: req.headers['user-agent'] ?? null,
+      },
+    });
+
+    respond.success(
+      res,
+      {
+        organization: {
+          id: org.id,
+          name: org.name,
+          shortName: org.shortName,
+          timezone: org.timezone,
+          logoUrl: org.logoUrl,
+        },
+      },
+      existing ? 200 : 201,
+    );
+  } catch (err) {
+    next(err);
+  }
+}
+
 // --- Validation helpers -----------------------------------------------------
 
 function validateSetup(body: Record<string, unknown>): string[] {
@@ -137,6 +221,8 @@ interface DepartmentInput {
   name: string;
   shiftStart: string;
   shiftEnd: string;
+  supervisorId?: string;
+  gracePeriod?: number;
   timezone?: string;
 }
 
@@ -162,9 +248,27 @@ export async function createDepartments(
     // Validate each item
     const fieldErrors: string[] = [];
     departments.forEach((d, i) => {
-      if (!d.name) fieldErrors.push(`departments[${i}].name is required`);
+      if (!d.name || typeof d.name !== 'string') fieldErrors.push(`departments[${i}].name is required`);
       if (!d.shiftStart) fieldErrors.push(`departments[${i}].shiftStart is required`);
       if (!d.shiftEnd) fieldErrors.push(`departments[${i}].shiftEnd is required`);
+
+      // Validate shiftStart < shiftEnd
+      if (d.shiftStart && d.shiftEnd) {
+        const [startH, startM] = d.shiftStart.split(':').map(Number);
+        const [endH, endM] = d.shiftEnd.split(':').map(Number);
+        const startMins = startH * 60 + startM;
+        const endMins = endH * 60 + endM;
+        if (startMins >= endMins) {
+          fieldErrors.push(`departments[${i}].shiftStart must be before shiftEnd`);
+        }
+      }
+
+      // Validate grace period
+      if (d.gracePeriod !== undefined) {
+        if (typeof d.gracePeriod !== 'number' || d.gracePeriod < 0 || d.gracePeriod > 60) {
+          fieldErrors.push(`departments[${i}].gracePeriod must be between 0 and 60`);
+        }
+      }
     });
 
     if (fieldErrors.length > 0) {
@@ -181,31 +285,63 @@ export async function createDepartments(
     });
     const defaultTimezone = org?.timezone ?? 'Africa/Nairobi';
 
-    const created = [];
-    for (const dept of departments) {
-      const department = await prisma.department.create({
-        data: {
-          name: dept.name,
-          shiftStart: dept.shiftStart,
-          shiftEnd: dept.shiftEnd,
-          timezone: dept.timezone ?? defaultTimezone,
-          organizationId,
-        },
-      });
+    const created: Array<{ id: string; name: string; shiftStart: string; shiftEnd: string }> = [];
+    const failed: { index: number; name: string; error: string }[] = [];
 
-      // Create default schedules for each user type
-      for (const schedule of DEFAULT_SCHEDULES) {
-        await prisma.schedule.create({
-          data: {
-            departmentId: department.id,
-            userType: schedule.userType,
-            cutoffTime: schedule.cutoffTime,
-            gracePeriodMins: schedule.gracePeriodMins,
-          },
-        });
+    // Use transaction for atomicity
+    await prisma.$transaction(async (tx) => {
+      for (let i = 0; i < departments.length; i++) {
+        const dept = departments[i];
+        try {
+          const department = await prisma.department.create({
+            data: {
+              name: dept.name,
+              shiftStart: dept.shiftStart,
+              shiftEnd: dept.shiftEnd,
+              timezone: dept.timezone ?? defaultTimezone,
+              organizationId,
+            },
+          });
+
+          // Assign supervisor if provided
+          if (dept.supervisorId) {
+            await prisma.user.update({
+              where: { id: dept.supervisorId },
+              data: { departmentId: department.id },
+            });
+          }
+
+          // Create default schedules for each user type
+          for (const schedule of DEFAULT_SCHEDULES) {
+            await prisma.schedule.create({
+              data: {
+                departmentId: department.id,
+                userType: schedule.userType,
+                cutoffTime: schedule.cutoffTime,
+                gracePeriodMins: schedule.gracePeriodMins,
+              },
+            });
+          }
+
+          created.push(department);
+        } catch (err) {
+          failed.push({
+            index: i,
+            name: dept.name,
+            error: err instanceof Error ? err.message : 'Unknown error',
+          });
+        }
       }
+    });
 
-      created.push(department);
+    // If any failed, return partial success with details
+    if (failed.length > 0) {
+      respond.error(
+        res,
+        `Failed to create ${failed.length} department(s): ${failed.map((f) => `${f.name} (${f.error})`).join(', ')}`,
+        207, // Multi-status
+      );
+      return;
     }
 
     await prisma.auditLog.create({
@@ -328,6 +464,149 @@ export async function createCohort(req: Request, res: Response, next: NextFuncti
           token: link.token,
           departmentId: link.departmentId,
           expiresAt: link.expiresAt,
+        })),
+      },
+      201,
+    );
+  } catch (err) {
+    next(err);
+  }
+}
+
+// --- POST /api/setup/cohorts (bulk) -----------------------------------------
+
+interface CohortInput {
+  name: string;
+  startDate: string;
+  endDate: string;
+  departmentIds?: string[];
+}
+
+export async function createCohorts(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { cohorts } = req.body as { cohorts?: CohortInput[] };
+
+    if (!Array.isArray(cohorts) || cohorts.length === 0) {
+      respond.error(res, 'cohorts array is required and must not be empty', 400);
+      return;
+    }
+
+    // Validate each item
+    const fieldErrors: string[] = [];
+    cohorts.forEach((c, i) => {
+      if (!c.name || typeof c.name !== 'string') fieldErrors.push(`cohorts[${i}].name is required`);
+      if (!c.startDate) fieldErrors.push(`cohorts[${i}].startDate is required`);
+      if (!c.endDate) fieldErrors.push(`cohorts[${i}].endDate is required`);
+
+      //.Validate date range
+      if (c.startDate && c.endDate) {
+        const start = new Date(c.startDate);
+        const end = new Date(c.endDate);
+        if (start >= end) {
+          fieldErrors.push(`cohorts[${i}].startDate must be before endDate`);
+        }
+      }
+    });
+
+    if (fieldErrors.length > 0) {
+      respond.error(res, fieldErrors.join(', '), 400);
+      return;
+    }
+
+    const organizationId = req.user!.organizationId;
+
+    const created: Array<{ id: string; name: string; startDate: Date; endDate: Date }> = [];
+    const failed: { index: number; name: string; error: string }[] = [];
+
+    // Use transaction for atomicity
+    await prisma.$transaction(async (tx) => {
+      for (let i = 0; i < cohorts.length; i++) {
+        const cohortData = cohorts[i];
+        try {
+          const cohort = await prisma.cohort.create({
+            data: {
+              name: cohortData.name,
+              startDate: new Date(cohortData.startDate),
+              endDate: new Date(cohortData.endDate),
+              organizationId,
+              isActive: true,
+            },
+          });
+
+          // Create invite links for the cohort
+          const inviteLinks = [];
+
+          // General cohort invite link
+          const generalLink = await prisma.inviteLink.create({
+            data: {
+              token: crypto.randomBytes(32).toString('hex'),
+              cohortId: cohort.id,
+              expiresAt: cohort.startDate,
+              maxUses: 999,
+              usedCount: 0,
+            },
+          });
+          inviteLinks.push(generalLink);
+
+          // Per-department invite links
+          if (Array.isArray(cohortData.departmentIds) && cohortData.departmentIds.length > 0) {
+            for (const deptId of cohortData.departmentIds) {
+              const deptLink = await prisma.inviteLink.create({
+                data: {
+                  token: crypto.randomBytes(32).toString('hex'),
+                  cohortId: cohort.id,
+                  departmentId: deptId,
+                  expiresAt: cohort.startDate,
+                  maxUses: 999,
+                  usedCount: 0,
+                },
+              });
+              inviteLinks.push(deptLink);
+            }
+          }
+
+          created.push(cohort);
+        } catch (err) {
+          failed.push({
+            index: i,
+            name: cohortData.name,
+            error: err instanceof Error ? err.message : 'Unknown error',
+          });
+        }
+      }
+    });
+
+    // If any failed, return partial success with details
+    if (failed.length > 0) {
+      respond.error(
+        res,
+        `Failed to create ${failed.length} cohort(s): ${failed.map((f) => `${f.name} (${f.error})`).join(', ')}`,
+        207, // Multi-status
+      );
+      return;
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        organizationId,
+        actorId: req.user!.id,
+        action: 'COHORTS_CREATED',
+        tableName: 'Cohort',
+        recordId: organizationId,
+        reason: `Created ${created.length} cohorts`,
+        ipAddress: req.ip ?? null,
+        userAgent: req.headers['user-agent'] ?? null,
+      },
+    });
+
+    respond.success(
+      res,
+      {
+        cohorts: created.map((c) => ({
+          id: c.id,
+          name: c.name,
+          startDate: c.startDate,
+          endDate: c.endDate,
         })),
       },
       201,
