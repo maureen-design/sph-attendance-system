@@ -211,6 +211,17 @@ async function main() {
   console.log('Creating attendance logs...');
 
   const nonAdminUsers = [...supervisors, ...staffUsers, ...attachees];
+  const logBatch: Array<{
+    userId: string;
+    organizationId: string;
+    departmentId: string;
+    date: Date;
+    status: AttendanceStatus;
+    checkInTime: Date | null;
+    checkOutTime: Date | null;
+    checkInMethod: CheckInMethod | null;
+    checkOutMethod: CheckOutMethod | null;
+  }> = [];
 
   for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
     const date = daysAgo(dayOffset);
@@ -240,20 +251,22 @@ async function main() {
       const checkOutHour = 16 + Math.floor(Math.random() * 2);
       const checkOutMin = Math.floor(Math.random() * 60);
 
-      await prisma.attendanceLog.create({
-        data: {
-          userId: user.id,
-          organizationId: org.id,
-          departmentId: user.departmentId!,
-          date,
-          status,
-          checkInTime: isPresent ? makeTime(date, checkInHour, checkInMin) : null,
-          checkOutTime: isPresent && Math.random() > 0.2 ? makeTime(date, checkOutHour, checkOutMin) : null,
-          checkInMethod: isPresent ? CheckInMethod.QR : null,
-          checkOutMethod: isPresent && Math.random() > 0.2 ? CheckOutMethod.SCANNED : null,
-        },
+      logBatch.push({
+        userId: user.id,
+        organizationId: org.id,
+        departmentId: user.departmentId!,
+        date,
+        status,
+        checkInTime: isPresent ? makeTime(date, checkInHour, checkInMin) : null,
+        checkOutTime: isPresent && Math.random() > 0.2 ? makeTime(date, checkOutHour, checkOutMin) : null,
+        checkInMethod: isPresent ? CheckInMethod.QR : null,
+        checkOutMethod: isPresent && Math.random() > 0.2 ? CheckOutMethod.SCANNED : null,
       });
     }
+  }
+
+  if (logBatch.length > 0) {
+    await prisma.attendanceLog.createMany({ data: logBatch });
   }
 
   // 10) Some disputes for testing
