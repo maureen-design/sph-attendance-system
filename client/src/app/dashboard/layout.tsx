@@ -3,10 +3,28 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Bell, BookOpen, History, User, LogOut } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Shield,
+  Users,
+  Building2,
+  Calendar,
+  Link as LinkIcon,
+  ClipboardList,
+  Settings,
+  LogOut,
+} from 'lucide-react';
 import { AuthGuard } from '@/components/guards/AuthGuard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAuth } from '@/context/AuthContext';
+
+const ROLE = {
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  DEPARTMENT_SUPERVISOR: 'DEPARTMENT_SUPERVISOR',
+  STAFF: 'STAFF',
+  MEMBER: 'MEMBER',
+  ATTACHEE: 'ATTACHEE',
+} as const;
 
 function getInitials(name: string): string {
   return name
@@ -89,50 +107,86 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const firstName = user?.fullName?.split(' ')[0] ?? 'User';
   const initials = user ? getInitials(user.fullName) : '??';
   const role = user?.role ?? 'STAFF';
-  const isAttachee = role === 'ATTACHEE';
 
-  const navItems = [
+  // Role-based nav items
+  const isAdmin = role === ROLE.SUPER_ADMIN;
+  const isSupervisor = role === ROLE.DEPARTMENT_SUPERVISOR;
+
+  const primaryNavItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Home', match: '/dashboard' },
-    // TODO: Uncomment when announcements page is implemented
-    // {
-    //   href: '/dashboard/announcements',
-    //   icon: Bell,
-    //   label: 'Announcements',
-    //   match: '/dashboard/announcements',
-    // },
-    // TODO: Uncomment when worklog page is implemented
-    // ...(isAttachee
-    //   ? [
-    //       {
-    //         href: '/dashboard/worklog',
-    //         icon: BookOpen,
-    //         label: 'Work Log',
-    //         match: '/dashboard/worklog',
-    //       },
-    //     ]
-    //   : []),
-    // TODO: Uncomment when profile page is implemented
-    // { href: '/dashboard/profile', icon: User, label: 'Profile', match: '/dashboard/profile' },
+    ...(isAdmin
+      ? [
+          {
+            href: '/dashboard/admin',
+            icon: Shield,
+            label: 'Admin Dashboard',
+            match: '/dashboard/admin',
+          },
+        ]
+      : []),
+    ...(isSupervisor
+      ? [
+          {
+            href: '/dashboard/supervisor',
+            icon: Shield,
+            label: 'Supervisor',
+            match: '/dashboard/supervisor',
+          },
+        ]
+      : []),
   ];
+
+  const adminNavItems = isAdmin
+    ? [
+        { href: '/dashboard/users', icon: Users, label: 'Users', match: '/dashboard/users' },
+        {
+          href: '/dashboard/departments',
+          icon: Building2,
+          label: 'Departments',
+          match: '/dashboard/departments',
+        },
+        {
+          href: '/dashboard/cohorts',
+          icon: Calendar,
+          label: 'Cohorts',
+          match: '/dashboard/cohorts',
+        },
+        {
+          href: '/dashboard/invite-links',
+          icon: LinkIcon,
+          label: 'Invite Links',
+          match: '/dashboard/invite-links',
+        },
+        {
+          href: '/dashboard/audit-logs',
+          icon: ClipboardList,
+          label: 'Audit Logs',
+          match: '/dashboard/audit-logs',
+        },
+        {
+          href: '/dashboard/settings',
+          icon: Settings,
+          label: 'Settings',
+          match: '/dashboard/settings',
+        },
+      ]
+    : [];
 
   const mobileNavItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Home', match: '/dashboard' },
-    // TODO: Uncomment when announcements page is implemented
-    // {
-    //   href: '/dashboard/announcements',
-    //   icon: Bell,
-    //   label: 'Alerts',
-    //   match: '/dashboard/announcements',
-    // },
-    // TODO: Uncomment when worklog/history pages are implemented
-    // {
-    //   href: isAttachee ? '/dashboard/worklog' : '/dashboard',
-    //   icon: isAttachee ? BookOpen : History,
-    //   label: isAttachee ? 'Log' : 'History',
-    //   match: isAttachee ? '/dashboard/worklog' : '/dashboard/history',
-    // },
-    // TODO: Uncomment when profile page is implemented
-    // { href: '/dashboard/profile', icon: User, label: 'Profile', match: '/dashboard/profile' },
+    ...(isAdmin
+      ? [{ href: '/dashboard/admin', icon: Shield, label: 'Admin', match: '/dashboard/admin' }]
+      : []),
+    ...(isSupervisor
+      ? [
+          {
+            href: '/dashboard/supervisor',
+            icon: Shield,
+            label: 'Supervisor',
+            match: '/dashboard/supervisor',
+          },
+        ]
+      : []),
   ];
 
   const handleLogout = async () => {
@@ -145,13 +199,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       {/* ── Desktop Sidebar ── */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-[var(--border)] surface lg:flex">
         {/* Logo */}
-        <div className="flex flex-col px-5 pt-6 pb-8">
+        <div className="flex flex-col px-5 pt-6 pb-6">
           <img src="/logo/swahilipot.png" alt="Swahilipot Hub" className="h-8 w-auto" />
         </div>
 
-        {/* Nav */}
-        <nav className="flex flex-1 flex-col gap-1 px-3">
-          {navItems.map((item) => (
+        {/* Primary Nav */}
+        <nav className="flex flex-col gap-1 px-3">
+          {primaryNavItems.map((item) => (
             <NavItem
               key={item.href}
               href={item.href}
@@ -161,6 +215,31 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             />
           ))}
         </nav>
+
+        {/* Admin Nav Section */}
+        {adminNavItems.length > 0 && (
+          <>
+            <div className="mt-4 mb-1 px-5">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted">
+                Management
+              </p>
+            </div>
+            <nav className="flex flex-col gap-1 px-3">
+              {adminNavItems.map((item) => (
+                <NavItem
+                  key={item.href}
+                  href={item.href}
+                  icon={item.icon}
+                  label={item.label}
+                  active={pathname === item.match}
+                />
+              ))}
+            </nav>
+          </>
+        )}
+
+        {/* Spacer */}
+        <div className="flex-1" />
 
         {/* User area */}
         <div className="flex items-center gap-3 border-t border-[var(--border)] px-5 py-4">
@@ -192,7 +271,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           <span className="text-xs text-muted">{firstName}</span>
         </header>
 
-        <div className="mx-auto max-w-3xl px-4 py-6 lg:px-8">{children}</div>
+        <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8">{children}</div>
       </main>
 
       {/* ── Mobile bottom nav ── */}

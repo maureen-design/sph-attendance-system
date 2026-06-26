@@ -13,6 +13,9 @@
     "prisma:studio": "prisma studio",
     "postinstall": "npx prisma generate"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "dependencies": {
     "@prisma/client": "^6.2.1",
     "@types/node-cron": "^3.0.11",
