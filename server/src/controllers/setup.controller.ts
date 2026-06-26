@@ -671,3 +671,55 @@ export async function revokeInviteLink(req: Request, res: Response, next: NextFu
     next(err);
   }
 }
+
+// --- GET /api/setup/invite-links ----------------------------------------------
+
+export async function getInviteLinks(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const organizationId = req.user!.organizationId;
+
+    const inviteLinks = await prisma.inviteLink.findMany({
+      where: {
+        cohort: {
+          organizationId,
+        },
+      },
+      include: {
+        cohort: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        department: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    respond.success(res, {
+      inviteLinks: inviteLinks.map((link: any) => ({
+        id: link.id,
+        token: link.token,
+        cohortId: link.cohortId,
+        cohortName: link.cohort.name,
+        departmentId: link.departmentId,
+        departmentName: link.department?.name || null,
+        isActive: link.isActive,
+        revokedAt: link.revokedAt,
+        usedCount: link.usedCount,
+        maxUses: link.maxUses,
+        expiresAt: link.expiresAt,
+        createdAt: link.createdAt,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+}

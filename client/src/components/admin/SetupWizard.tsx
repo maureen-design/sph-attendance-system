@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Check, Building2, Users, Calendar, Link as LinkIcon, Plus, Trash2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { post } from '@/lib/api';
+import { post, get } from '@/lib/api';
 import { ApiError } from '@/lib/api';
 
 type Step = 'organization' | 'departments' | 'cohorts' | 'invites';
@@ -35,7 +35,7 @@ interface CohortData {
   startDate: string;
   endDate: string;
   departmentIds: string[];
-  inviteLinks?: Array<{ token: string; departmentId?: string }>;
+  inviteLinks?: Array<{ id: string; token: string; departmentId?: string }>;
 }
 
 const TIMEZONES = [
@@ -674,29 +674,80 @@ function Step4Invites({
   onBack: () => void;
   onFinish: () => void;
 }) {
+  const [inviteLinks, setInviteLinks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [revoking, setRevoking] = useState<string | null>(null);
+  const [revokeConfirm, setRevokeConfirm] = useState<string | null>(null);
+  const [revokeError, setRevokeError] = useState('');
+  const [copied, setCopied] = useState<string | null>(null);
 
-  const copyToClipboard = async (token: string) => {
+  useEffect(() => {
+    fetchInviteLinks();
+  }, []);
+
+  const fetchInviteLinks = async () => {
+    try {
+      const response = await get('/setup/invite-links');
+      setInviteLinks(response.inviteLinks || []);
+    } catch (err) {
+      console.error('Failed to fetch invite links:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyToClipboard = async (token: string, id: string) => {
     const inviteUrl = `${window.location.origin}/register?token=${token}`;
     await navigator.clipboard.writeText(inviteUrl);
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
   };
 
   const handleRevoke = async (linkId: string) => {
+    setRevokeConfirm(null);
+    setRevokeError('');
     setRevoking(linkId);
     try {
       await post('/setup/invite-links/revoke', { linkId });
+      await fetchInviteLinks();
     } catch (err) {
-      console.error('Failed to revoke link:', err);
+      const message = err instanceof ApiError ? err.message : 'Failed to revoke link';
+      setRevokeError(message);
     } finally {
       setRevoking(null);
     }
   };
 
-  const getDepartmentName = (deptId?: string) => {
-    if (!deptId) return 'All Departments';
-    const dept = departments.find((d) => d.id === deptId);
-    return dept?.name || 'Unknown Department';
+  const getLinkStatus = (link: any) => {
+    if (!link.isActive) return { status: 'Revoked', color: 'text-sph-red', dot: 'bg-sph-red' };
+    if (link.usedCount >= link.maxUses) return { status: 'Used', color: 'text-blue-500', dot: 'bg-blue-500' };
+    if (new Date(link.expiresAt) < new Date()) return { status: 'Expired', color: 'text-amber-500', dot: 'bg-amber-500' };
+    return { status: 'Active', color: 'text-sph-green', dot: 'bg-sph-green' };
   };
+
+  const groupLinksByCohort = () => {
+    const grouped: Record<string, any[]> = {};
+    inviteLinks.forEach((link) => {
+      if (!grouped[link.cohortName]) {
+        grouped[link.cohortName] = [];
+      }
+      grouped[link.cohortName].push(link);
+    });
+    return grouped;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Invite Links</h2>
+          <p className="mt-1 text-sm text-secondary">Loading invite links...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const groupedLinks = groupLinksByCohort();
 
   return (
     <div className="flex flex-col gap-6">
@@ -707,57 +758,96 @@ function Step4Invites({
         </p>
       </div>
 
+      {revokeError && (
+        <div className="rounded-lg border border-sph-red/30 bg-sph-red/10 px-4 py-3 text-sm text-sph-red">
+          {revokeError}
+        </div>
+      )}
+
       <div className="flex flex-col gap-4">
-        {cohorts.map((cohort) => (
+        {Object.entries(groupedLinks).map(([cohortName, links]) => (
           <div
-            key={cohort.id}
+            key={cohortName}
             className="rounded-xl border border-[var(--border)] surface-elevated p-4 transition-all duration-150"
           >
-            <h3 className="mb-3 text-sm font-medium text-[var(--text-primary)]">{cohort.name}</h3>
+            <h3 className="mb-3 text-sm font-medium text-[var(--text-primary)]">{cohortName}</h3>
 
             <div className="flex flex-col gap-2">
-              {cohort.inviteLinks?.map((link, linkIndex) => (
-                <div
-                  key={`${cohort.id}-${linkIndex}`}
-                  className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-sm font-medium text-[var(--text-primary)]">
-                      {getDepartmentName(link.departmentId)}
-                    </p>
-                    <p className="truncate text-xs text-secondary">
-                      {window.location.origin}/register?token={link.token}
-                    </p>
+              {links.map((link) => {
+                const { status, color, dot } = getLinkStatus(link);
+                return (
+                  <div
+                    key={link.id}
+                    className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3"
+                  >
+                    <div className={`h-2 w-2 rounded-full ${dot}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate text-sm font-medium text-[var(--text-primary)]">
+                        {link.departmentName || 'All Departments'}
+                      </p>
+                      <p className="truncate text-xs text-secondary">
+                        {window.location.origin}/register?token={link.token}
+                      </p>
+                      <p className={`text-xs font-medium ${color}`}>{status}</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(link.token, link.id)}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-sph-green transition-colors hover:bg-sph-green/10"
+                      aria-label="Copy link"
+                    >
+                      {copied === link.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setRevokeConfirm(link.id)}
+                      disabled={revoking === link.id || !link.isActive}
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-sph-red transition-colors hover:bg-sph-red/10 disabled:opacity-50"
+                      aria-label="Revoke link"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(link.token)}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-sph-green transition-colors hover:bg-sph-green/10"
-                    aria-label="Copy link"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleRevoke(link.token)}
-                    disabled={revoking === link.token}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-sph-red transition-colors hover:bg-sph-red/10 disabled:opacity-50"
-                    aria-label="Revoke link"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-
-              {(!cohort.inviteLinks || cohort.inviteLinks.length === 0) && (
-                <p className="text-sm text-secondary">No invite links generated for this cohort.</p>
-              )}
+                );
+              })}
             </div>
           </div>
         ))}
+
+        {inviteLinks.length === 0 && (
+          <p className="text-sm text-secondary">No invite links found. Complete Step 3 to generate links.</p>
+        )}
       </div>
+
+      {/* Revoke confirmation dialog */}
+      {revokeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-xl surface-elevated border border-[var(--border)] p-6">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)]">Revoke Invite Link</h3>
+            <p className="mt-2 text-sm text-secondary">
+              Are you sure you want to revoke this link? It cannot be reactivated.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setRevokeConfirm(null)}
+                className="h-11 rounded-xl border-[var(--border)] px-6"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => handleRevoke(revokeConfirm)}
+                disabled={revoking === revokeConfirm}
+                className="h-11 rounded-xl bg-sph-red px-6 text-white hover:bg-sph-red/90"
+              >
+                {revoking === revokeConfirm ? 'Revoking...' : 'Revoke'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center justify-between pt-4">
         <Button
