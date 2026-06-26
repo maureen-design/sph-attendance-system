@@ -235,7 +235,13 @@ export function CheckInButton({
       const checkInDate = new Date(checkInTimeIso);
       const today = new Date();
       const [hours, minutes] = selfReportTime.split(':').map(Number);
-      const reportedDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes);
+      const reportedDate = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+        hours,
+        minutes,
+      );
 
       if (reportedDate <= checkInDate) {
         validationErrors.push('Time must be after check-in time');
@@ -308,7 +314,11 @@ export function CheckInButton({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {dialogMode === 'checkin' ? 'Check In' : dialogMode === 'checkout' ? 'Check Out' : 'Report Check-Out Time'}
+              {dialogMode === 'checkin'
+                ? 'Check In'
+                : dialogMode === 'checkout'
+                  ? 'Check Out'
+                  : 'Report Check-Out Time'}
             </DialogTitle>
             <DialogDescription>
               {dialogMode === 'checkin'
@@ -384,10 +394,18 @@ export function CheckInButton({
               {isSubmitting ? (
                 <>
                   <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  {dialogMode === 'checkin' ? 'Checking in...' : dialogMode === 'checkout' ? 'Checking out...' : 'Submitting...'}
+                  {dialogMode === 'checkin'
+                    ? 'Checking in...'
+                    : dialogMode === 'checkout'
+                      ? 'Checking out...'
+                      : 'Submitting...'}
                 </>
+              ) : dialogMode === 'checkin' ? (
+                'Confirm Check In'
+              ) : dialogMode === 'checkout' ? (
+                'Confirm Check Out'
               ) : (
-                dialogMode === 'checkin' ? 'Confirm Check In' : dialogMode === 'checkout' ? 'Confirm Check Out' : 'Submit Report'
+                'Submit Report'
               )}
             </Button>
           </div>

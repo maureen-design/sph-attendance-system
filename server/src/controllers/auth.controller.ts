@@ -412,21 +412,40 @@ export async function forgotPassword(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const { email, organizationId } = req.body as {
+    const { email, organizationId, orgShortName } = req.body as {
       email?: string;
       organizationId?: string;
+      orgShortName?: string;
     };
 
-    if (!email || !organizationId) {
-      respond.error(res, 'email and organizationId are required', 400);
+    if (!email) {
+      respond.error(res, 'email is required', 400);
+      return;
+    }
+
+    if (!organizationId && !orgShortName) {
+      respond.error(res, 'organizationId or orgShortName is required', 400);
       return;
     }
 
     const genericMessage = 'If an account exists, a reset link has been sent';
 
-    // 1) Find user
+    // 1) Resolve organizationId from shortName if needed
+    let resolvedOrgId = organizationId;
+    if (!resolvedOrgId && orgShortName) {
+      const org = await prisma.organization.findFirst({
+        where: { shortName: { equals: orgShortName, mode: 'insensitive' } },
+      });
+      if (!org) {
+        respond.success(res, { message: genericMessage });
+        return;
+      }
+      resolvedOrgId = org.id;
+    }
+
+    // 2) Find user
     const user = await prisma.user.findUnique({
-      where: { email_organizationId: { email, organizationId } },
+      where: { email_organizationId: { email, organizationId: resolvedOrgId! } },
     });
 
     if (!user) {
@@ -454,7 +473,7 @@ export async function forgotPassword(
     // 6) Audit log
     await prisma.auditLog.create({
       data: {
-        organizationId,
+        organizationId: resolvedOrgId!,
         actorId: user.id,
         action: 'PASSWORD_RESET_REQUESTED',
         tableName: 'User',

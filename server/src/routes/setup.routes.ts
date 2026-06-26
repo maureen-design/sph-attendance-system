@@ -24,6 +24,11 @@ router.post('/departments', authenticateToken, requireRole(Role.SUPER_ADMIN), cr
 router.post('/cohort', authenticateToken, requireRole(Role.SUPER_ADMIN), createCohort);
 router.post('/cohorts', authenticateToken, requireRole(Role.SUPER_ADMIN), createCohorts);
 router.get('/invite-links', authenticateToken, requireRole(Role.SUPER_ADMIN), getInviteLinks);
-router.post('/invite-links/revoke', authenticateToken, requireRole(Role.SUPER_ADMIN), revokeInviteLink);
+router.post(
+  '/invite-links/revoke',
+  authenticateToken,
+  requireRole(Role.SUPER_ADMIN),
+  revokeInviteLink,
+);
 
 export default router;

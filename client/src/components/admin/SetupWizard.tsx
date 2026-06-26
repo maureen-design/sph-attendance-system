@@ -1,7 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Check, Building2, Users, Calendar, Link as LinkIcon, Plus, Trash2, Copy } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  Building2,
+  Users,
+  Calendar,
+  Link as LinkIcon,
+  Plus,
+  Trash2,
+  Copy,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,12 +49,7 @@ interface CohortData {
   inviteLinks?: Array<{ id: string; token: string; departmentId?: string }>;
 }
 
-const TIMEZONES = [
-  'Africa/Nairobi',
-  'Africa/Lagos',
-  'Africa/Johannesburg',
-  'UTC',
-];
+const TIMEZONES = ['Africa/Nairobi', 'Africa/Lagos', 'Africa/Johannesburg', 'UTC'];
 
 export function SetupWizard({ onComplete }: SetupWizardProps) {
   const [currentStep, setCurrentStep] = useState<Step>('organization');
@@ -59,7 +65,14 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
   // Step 2: Departments
   const [departments, setDepartments] = useState<DepartmentData[]>([
-    { id: '1', name: '', supervisorId: '', shiftStart: '09:00', shiftEnd: '17:00', gracePeriod: 15 },
+    {
+      id: '1',
+      name: '',
+      supervisorId: '',
+      shiftStart: '09:00',
+      shiftEnd: '17:00',
+      gracePeriod: 15,
+    },
   ]);
 
   // Step 3: Cohorts
@@ -237,7 +250,11 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
               </div>
               <span
                 className={`text-xs font-medium transition-colors duration-150 ${
-                  isActive ? 'text-[var(--text-primary)]' : isCompleted ? 'text-sph-green' : 'text-muted'
+                  isActive
+                    ? 'text-[var(--text-primary)]'
+                    : isCompleted
+                      ? 'text-sph-green'
+                      : 'text-muted'
                 }`}
               >
                 {step.label}
@@ -258,17 +275,10 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
           />
         )}
         {currentStep === 'departments' && (
-          <Step2Departments
-            departments={departments}
-            onChange={setDepartments}
-          />
+          <Step2Departments departments={departments} onChange={setDepartments} />
         )}
         {currentStep === 'cohorts' && (
-          <Step3Cohorts
-            cohorts={cohorts}
-            departments={departments}
-            onChange={setCohorts}
-          />
+          <Step3Cohorts cohorts={cohorts} departments={departments} onChange={setCohorts} />
         )}
         {currentStep === 'invites' && (
           <Step4Invites
@@ -292,11 +302,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
             <ChevronLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <Button
-            onClick={handleNext}
-            disabled={isSubmitting}
-            className="h-11 rounded-xl"
-          >
+          <Button onClick={handleNext} disabled={isSubmitting} className="h-11 rounded-xl">
             {isSubmitting ? (
               'Saving...'
             ) : (
@@ -397,7 +403,14 @@ function Step2Departments({
     const newId = (departments.length + 1).toString();
     onChange([
       ...departments,
-      { id: newId, name: '', supervisorId: '', shiftStart: '09:00', shiftEnd: '17:00', gracePeriod: 15 },
+      {
+        id: newId,
+        name: '',
+        supervisorId: '',
+        shiftStart: '09:00',
+        shiftEnd: '17:00',
+        gracePeriod: 15,
+      },
     ]);
   };
 
@@ -474,7 +487,9 @@ function Step2Departments({
                   min="0"
                   max="60"
                   value={dept.gracePeriod}
-                  onChange={(e) => updateDepartment(dept.id, 'gracePeriod', parseInt(e.target.value) || 0)}
+                  onChange={(e) =>
+                    updateDepartment(dept.id, 'gracePeriod', parseInt(e.target.value) || 0)
+                  }
                   className="h-11 rounded-xl border-[var(--border)] surface-elevated px-4 text-[var(--text-primary)]"
                 />
               </div>
@@ -530,10 +545,7 @@ function Step3Cohorts({
 }) {
   const addCohort = () => {
     const newId = (cohorts.length + 1).toString();
-    onChange([
-      ...cohorts,
-      { id: newId, name: '', startDate: '', endDate: '', departmentIds: [] },
-    ]);
+    onChange([...cohorts, { id: newId, name: '', startDate: '', endDate: '', departmentIds: [] }]);
   };
 
   const removeCohort = (id: string) => {
@@ -560,9 +572,7 @@ function Step3Cohorts({
     <div className="flex flex-col gap-6">
       <div>
         <h2 className="text-lg font-semibold text-[var(--text-primary)]">Cohorts</h2>
-        <p className="mt-1 text-sm text-secondary">
-          Create cohorts and assign departments.
-        </p>
+        <p className="mt-1 text-sm text-secondary">Create cohorts and assign departments.</p>
       </div>
 
       <div className="flex flex-col gap-4">
@@ -624,7 +634,9 @@ function Step3Cohorts({
               <div className="flex flex-col gap-1.5 sm:col-span-2">
                 <Label>Departments</Label>
                 {departments.length === 0 ? (
-                  <p className="text-sm text-secondary">No departments available. Add departments in Step 2.</p>
+                  <p className="text-sm text-secondary">
+                    No departments available. Add departments in Step 2.
+                  </p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {departments.map((dept) => (
@@ -720,8 +732,10 @@ function Step4Invites({
 
   const getLinkStatus = (link: any) => {
     if (!link.isActive) return { status: 'Revoked', color: 'text-sph-red', dot: 'bg-sph-red' };
-    if (link.usedCount >= link.maxUses) return { status: 'Used', color: 'text-blue-500', dot: 'bg-blue-500' };
-    if (new Date(link.expiresAt) < new Date()) return { status: 'Expired', color: 'text-amber-500', dot: 'bg-amber-500' };
+    if (link.usedCount >= link.maxUses)
+      return { status: 'Used', color: 'text-blue-500', dot: 'bg-blue-500' };
+    if (new Date(link.expiresAt) < new Date())
+      return { status: 'Expired', color: 'text-amber-500', dot: 'bg-amber-500' };
     return { status: 'Active', color: 'text-sph-green', dot: 'bg-sph-green' };
   };
 
@@ -797,7 +811,11 @@ function Step4Invites({
                       className="flex h-9 w-9 items-center justify-center rounded-lg text-sph-green transition-colors hover:bg-sph-green/10"
                       aria-label="Copy link"
                     >
-                      {copied === link.id ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      {copied === link.id ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
                     </button>
 
                     <button
@@ -817,7 +835,9 @@ function Step4Invites({
         ))}
 
         {inviteLinks.length === 0 && (
-          <p className="text-sm text-secondary">No invite links found. Complete Step 3 to generate links.</p>
+          <p className="text-sm text-secondary">
+            No invite links found. Complete Step 3 to generate links.
+          </p>
         )}
       </div>
 

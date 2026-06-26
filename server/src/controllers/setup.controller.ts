@@ -8,7 +8,11 @@ import * as respond from '../utils/response.js';
 
 // --- POST /api/setup/organization ----------------------------------------------
 
-export async function createOrganization(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createOrganization(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { name, timezone, logoUrl } = req.body as {
       name?: string;
@@ -248,7 +252,8 @@ export async function createDepartments(
     // Validate each item
     const fieldErrors: string[] = [];
     departments.forEach((d, i) => {
-      if (!d.name || typeof d.name !== 'string') fieldErrors.push(`departments[${i}].name is required`);
+      if (!d.name || typeof d.name !== 'string')
+        fieldErrors.push(`departments[${i}].name is required`);
       if (!d.shiftStart) fieldErrors.push(`departments[${i}].shiftStart is required`);
       if (!d.shiftEnd) fieldErrors.push(`departments[${i}].shiftEnd is required`);
 
@@ -482,7 +487,11 @@ interface CohortInput {
   departmentIds?: string[];
 }
 
-export async function createCohorts(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createCohorts(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { cohorts } = req.body as { cohorts?: CohortInput[] };
 
@@ -618,7 +627,11 @@ export async function createCohorts(req: Request, res: Response, next: NextFunct
 
 // --- POST /api/setup/invite-links/revoke ---------------------------------------
 
-export async function revokeInviteLink(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function revokeInviteLink(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const { linkId } = req.body as { linkId?: string };
 
@@ -674,7 +687,11 @@ export async function revokeInviteLink(req: Request, res: Response, next: NextFu
 
 // --- GET /api/setup/invite-links ----------------------------------------------
 
-export async function getInviteLinks(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function getInviteLinks(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     const organizationId = req.user!.organizationId;
 

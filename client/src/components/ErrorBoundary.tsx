@@ -31,7 +31,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         this.props.fallback || (
           <div className="flex min-h-screen items-center justify-center bg-[var(--background)] px-4">
             <div className="max-w-md text-center">
-              <h2 className="text-xl font-semibold text-[var(--text-primary)]">Something went wrong</h2>
+              <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+                Something went wrong
+              </h2>
               <p className="mt-2 text-sm text-secondary">
                 Please refresh the page. If the problem persists, contact support.
               </p>

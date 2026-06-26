@@ -5,11 +5,7 @@ export default function Home() {
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-sph-dark px-6">
       <div className="flex flex-col items-center text-center">
         <div className="mb-6 flex flex-col items-center">
-          <img
-            src="/logo/swahilipot.png"
-            alt="Swahilipot Hub"
-            className="h-16 w-auto"
-          />
+          <img src="/logo/swahilipot.png" alt="Swahilipot Hub" className="h-16 w-auto" />
         </div>
 
         <h1>
