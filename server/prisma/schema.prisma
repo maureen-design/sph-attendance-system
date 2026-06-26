@@ -167,8 +167,10 @@ model InviteLink {
   departmentId String?
   expiresAt    DateTime
   revokedAt    DateTime?
+  isActive     Boolean   @default(true)
   maxUses      Int       @default(1)
   usedCount    Int       @default(0)
+  usedBy       String[]  @default([])
   createdAt    DateTime  @default(now())
 
   cohort       Cohort      @relation(fields: [cohortId], references: [id])

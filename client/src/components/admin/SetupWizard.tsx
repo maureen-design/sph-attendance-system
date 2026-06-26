@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Check, Building2, Users, Calendar, Link as LinkIcon, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Building2, Users, Calendar, Link as LinkIcon, Plus, Trash2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,6 +35,7 @@ interface CohortData {
   startDate: string;
   endDate: string;
   departmentIds: string[];
+  inviteLinks?: Array<{ token: string; departmentId?: string }>;
 }
 
 const TIMEZONES = [
@@ -165,7 +166,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     setError('');
     setIsSubmitting(true);
     try {
-      await post('/setup/cohorts', {
+      const response = await post('/setup/cohorts', {
         cohorts: cohorts.map((c) => ({
           name: c.name,
           startDate: c.startDate,
@@ -173,6 +174,14 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
           departmentIds: c.departmentIds,
         })),
       });
+
+      // Store invite links for each cohort
+      const updatedCohorts = cohorts.map((c, i) => ({
+        ...c,
+        inviteLinks: response.cohorts[i]?.inviteLinks || [],
+      }));
+      setCohorts(updatedCohorts);
+
       setCurrentStep('invites');
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Failed to save cohorts';
@@ -261,37 +270,44 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
             onChange={setCohorts}
           />
         )}
-        {currentStep === 'invites' && <Step4Invites cohorts={cohorts} />}
+        {currentStep === 'invites' && (
+          <Step4Invites
+            cohorts={cohorts}
+            departments={departments}
+            onBack={handleBack}
+            onFinish={onComplete}
+          />
+        )}
       </div>
 
-      {/* Navigation buttons */}
-      <div className="mt-8 flex items-center justify-between border-t border-[var(--border)] pt-6">
-        <Button
-          variant="outline"
-          onClick={handleBack}
-          disabled={currentStep === 'organization' || isSubmitting}
-          className="h-11 rounded-xl border-[var(--border)]"
-        >
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-        <Button
-          onClick={handleNext}
-          disabled={isSubmitting}
-          className="h-11 rounded-xl"
-        >
-          {isSubmitting ? (
-            'Saving...'
-          ) : currentStep === 'invites' ? (
-            'Finish'
-          ) : (
-            <>
-              Next
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </>
-          )}
-        </Button>
-      </div>
+      {/* Navigation buttons - hide on Step 4 since it has its own */}
+      {currentStep !== 'invites' && (
+        <div className="mt-8 flex items-center justify-between border-t border-[var(--border)] pt-6">
+          <Button
+            variant="outline"
+            onClick={handleBack}
+            disabled={currentStep === 'organization' || isSubmitting}
+            className="h-11 rounded-xl border-[var(--border)]"
+          >
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Back
+          </Button>
+          <Button
+            onClick={handleNext}
+            disabled={isSubmitting}
+            className="h-11 rounded-xl"
+          >
+            {isSubmitting ? (
+              'Saving...'
+            ) : (
+              <>
+                Next
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </>
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -646,18 +662,122 @@ function Step3Cohorts({
   );
 }
 
-// Step 4: Invite Links (placeholder)
-function Step4Invites({ cohorts }: { cohorts: CohortData[] }) {
+// Step 4: Invite Links
+function Step4Invites({
+  cohorts,
+  departments,
+  onBack,
+  onFinish,
+}: {
+  cohorts: CohortData[];
+  departments: DepartmentData[];
+  onBack: () => void;
+  onFinish: () => void;
+}) {
+  const [revoking, setRevoking] = useState<string | null>(null);
+
+  const copyToClipboard = async (token: string) => {
+    const inviteUrl = `${window.location.origin}/register?token=${token}`;
+    await navigator.clipboard.writeText(inviteUrl);
+  };
+
+  const handleRevoke = async (linkId: string) => {
+    setRevoking(linkId);
+    try {
+      await post('/setup/invite-links/revoke', { linkId });
+    } catch (err) {
+      console.error('Failed to revoke link:', err);
+    } finally {
+      setRevoking(null);
+    }
+  };
+
+  const getDepartmentName = (deptId?: string) => {
+    if (!deptId) return 'All Departments';
+    const dept = departments.find((d) => d.id === deptId);
+    return dept?.name || 'Unknown Department';
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h2 className="text-lg font-semibold text-[var(--text-primary)]">Invite Links</h2>
         <p className="mt-1 text-sm text-secondary">
-          Generate and manage invite links for your cohorts.
+          Share these links with new members to register. Each link can only be used once.
         </p>
       </div>
-      <div className="rounded-xl border border-dashed border-[var(--border)] px-6 py-12 text-center">
-        <p className="text-sm text-secondary">Step 4 implementation pending</p>
+
+      <div className="flex flex-col gap-4">
+        {cohorts.map((cohort) => (
+          <div
+            key={cohort.id}
+            className="rounded-xl border border-[var(--border)] surface-elevated p-4 transition-all duration-150"
+          >
+            <h3 className="mb-3 text-sm font-medium text-[var(--text-primary)]">{cohort.name}</h3>
+
+            <div className="flex flex-col gap-2">
+              {cohort.inviteLinks?.map((link, linkIndex) => (
+                <div
+                  key={`${cohort.id}-${linkIndex}`}
+                  className="flex items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-sm font-medium text-[var(--text-primary)]">
+                      {getDepartmentName(link.departmentId)}
+                    </p>
+                    <p className="truncate text-xs text-secondary">
+                      {window.location.origin}/register?token={link.token}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(link.token)}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-sph-green transition-colors hover:bg-sph-green/10"
+                    aria-label="Copy link"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleRevoke(link.token)}
+                    disabled={revoking === link.token}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg text-sph-red transition-colors hover:bg-sph-red/10 disabled:opacity-50"
+                    aria-label="Revoke link"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+
+              {(!cohort.inviteLinks || cohort.inviteLinks.length === 0) && (
+                <p className="text-sm text-secondary">No invite links generated for this cohort.</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between pt-4">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onBack}
+          className="h-11 rounded-xl border-[var(--border)] px-6"
+        >
+          <ChevronLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+
+        <Button
+          type="button"
+          onClick={onFinish}
+          className="h-11 rounded-xl bg-sph-green px-6 text-white hover:bg-sph-green/90"
+        >
+          Finish Setup
+          <ChevronRight className="ml-2 h-4 w-4" />
+        </Button>
       </div>
     </div>
   );

@@ -415,8 +415,8 @@ export async function createCohort(req: Request, res: Response, next: NextFuncti
         token: crypto.randomBytes(32).toString('hex'),
         cohortId: cohort.id,
         expiresAt: cohort.startDate,
-        maxUses: 999,
-        usedCount: 0,
+        maxUses: 1,
+        isActive: true,
       },
     });
     inviteLinks.push(generalLink);
@@ -430,8 +430,8 @@ export async function createCohort(req: Request, res: Response, next: NextFuncti
             cohortId: cohort.id,
             departmentId: deptId,
             expiresAt: cohort.startDate,
-            maxUses: 999,
-            usedCount: 0,
+            maxUses: 1,
+            isActive: true,
           },
         });
         inviteLinks.push(deptLink);
@@ -542,8 +542,8 @@ export async function createCohorts(req: Request, res: Response, next: NextFunct
               token: crypto.randomBytes(32).toString('hex'),
               cohortId: cohort.id,
               expiresAt: cohort.startDate,
-              maxUses: 999,
-              usedCount: 0,
+              maxUses: 1,
+              isActive: true,
             },
           });
           inviteLinks.push(generalLink);
@@ -557,8 +557,8 @@ export async function createCohorts(req: Request, res: Response, next: NextFunct
                   cohortId: cohort.id,
                   departmentId: deptId,
                   expiresAt: cohort.startDate,
-                  maxUses: 999,
-                  usedCount: 0,
+                  maxUses: 1,
+                  isActive: true,
                 },
               });
               inviteLinks.push(deptLink);
@@ -611,6 +611,62 @@ export async function createCohorts(req: Request, res: Response, next: NextFunct
       },
       201,
     );
+  } catch (err) {
+    next(err);
+  }
+}
+
+// --- POST /api/setup/invite-links/revoke ---------------------------------------
+
+export async function revokeInviteLink(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { linkId } = req.body as { linkId?: string };
+
+    if (!linkId) {
+      respond.error(res, 'linkId is required', 400);
+      return;
+    }
+
+    const organizationId = req.user!.organizationId;
+
+    // Verify the link belongs to the organization
+    const link = await prisma.inviteLink.findFirst({
+      where: { id: linkId },
+      include: { cohort: true },
+    });
+
+    if (!link) {
+      respond.error(res, 'Invite link not found', 404);
+      return;
+    }
+
+    if (link.cohort.organizationId !== organizationId) {
+      respond.error(res, 'You do not have permission to revoke this link', 403);
+      return;
+    }
+
+    // Revoke the link
+    await prisma.inviteLink.update({
+      where: { id: linkId },
+      data: {
+        isActive: false,
+        revokedAt: new Date(),
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        organizationId,
+        actorId: req.user!.id,
+        action: 'INVITE_LINK_REVOKED',
+        tableName: 'InviteLink',
+        recordId: linkId,
+        ipAddress: req.ip ?? null,
+        userAgent: req.headers['user-agent'] ?? null,
+      },
+    });
+
+    respond.success(res, { message: 'Invite link revoked successfully' });
   } catch (err) {
     next(err);
   }

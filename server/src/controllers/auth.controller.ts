@@ -63,6 +63,10 @@ export async function register(req: Request, res: Response, next: NextFunction):
     }
 
     // 2) Validate invite link
+    if (!invite.isActive) {
+      respond.error(res, 'This invite link has been revoked', 400);
+      return;
+    }
     if (invite.revokedAt !== null) {
       respond.error(res, 'This invite link has been revoked', 400);
       return;
@@ -104,10 +108,33 @@ export async function register(req: Request, res: Response, next: NextFunction):
       },
     });
 
-    // 5) Increment invite usage
+    // 5) Check for duplicate registration attempt (same user trying to use link again)
+    if (invite.usedBy && invite.usedBy.includes(user.id)) {
+      // Log duplicate attempt
+      await prisma.auditLog.create({
+        data: {
+          organizationId,
+          actorId: user.id,
+          action: 'INVITE_LINK_DUPLICATE_ATTEMPT',
+          tableName: 'InviteLink',
+          recordId: invite.id,
+          reason: 'User attempted to register with an invite link they already used',
+          ipAddress: req.ip ?? null,
+          userAgent: req.headers['user-agent'] ?? null,
+        },
+      });
+
+      respond.error(res, 'You have already used this invite link', 400);
+      return;
+    }
+
+    // 6) Increment invite usage and track user
     await prisma.inviteLink.update({
       where: { id: invite.id },
-      data: { usedCount: { increment: 1 } },
+      data: {
+        usedCount: { increment: 1 },
+        usedBy: { push: user.id },
+      },
     });
 
     // 6) Audit log
