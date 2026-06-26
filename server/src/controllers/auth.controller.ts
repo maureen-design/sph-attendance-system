@@ -428,6 +428,15 @@ export async function forgotPassword(
       return;
     }
 
+    if (!config.RESEND_API_KEY) {
+      respond.error(
+        res,
+        'Password reset is unavailable. Email service not configured. Contact your administrator.',
+        503,
+      );
+      return;
+    }
+
     const genericMessage = 'If an account exists, a reset link has been sent';
 
     // 1) Resolve organizationId from shortName if needed
