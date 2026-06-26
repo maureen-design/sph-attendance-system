@@ -78,6 +78,7 @@ async function main() {
       organizationId: org.id,
       startDate: new Date('2026-01-01'),
       endDate: new Date('2026-06-30'),
+      isActive: true,
     },
   });
 
@@ -87,6 +88,7 @@ async function main() {
       organizationId: org.id,
       startDate: new Date('2026-03-01'),
       endDate: new Date('2026-09-30'),
+      isActive: true,
     },
   });
 
@@ -141,11 +143,11 @@ async function main() {
     ),
   );
 
-  // 6) STAFF
+  // 6) STAFF (no cohort — only ATTACHEES belong to cohorts)
   const staffUsers = await Promise.all(
     [
-      { fullName: 'Frank Staff', email: 'frank.staff@sphattendance.com', dept: 0, cohort: cohort1.id },
-      { fullName: 'Grace Staff', email: 'grace.staff@sphattendance.com', dept: 1, cohort: cohort2.id },
+      { fullName: 'Frank Staff', email: 'frank.staff@sphattendance.com', dept: 0 },
+      { fullName: 'Grace Staff', email: 'grace.staff@sphattendance.com', dept: 1 },
     ].map((s) =>
       prisma.user.create({
         data: {
@@ -154,7 +156,6 @@ async function main() {
           role: Role.STAFF,
           organizationId: org.id,
           departmentId: departments[s.dept].id,
-          cohortId: s.cohort,
           passwordHash: defaultHash,
           isActive: true,
         },
