@@ -35,6 +35,11 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
+function isActive(pathname: string, match: string): boolean {
+  if (match === '/dashboard') return pathname === '/dashboard';
+  return pathname === match || pathname.startsWith(match + '/');
+}
+
 function NavItem({
   href,
   icon: Icon,
@@ -69,15 +74,18 @@ function MobileNavItem({
   icon: Icon,
   label,
   active,
+  onClick,
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   active: boolean;
+  onClick?: () => void;
 }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-colors ${
         active ? 'text-sph-green' : 'text-secondary'
       }`}
@@ -108,7 +116,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const initials = user ? getInitials(user.fullName) : '??';
   const role = user?.role ?? 'STAFF';
 
-  // Role-based nav items
   const isAdmin = role === ROLE.SUPER_ADMIN;
   const isSupervisor = role === ROLE.DEPARTMENT_SUPERVISOR;
 
@@ -198,9 +205,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-[var(--background)]">
       {/* ── Desktop Sidebar ── */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-[var(--border)] surface lg:flex">
-        {/* Logo */}
+        {/* Logo — visual anchor only */}
         <div className="flex flex-col px-5 pt-6 pb-6">
-          <img src="/logo/swahilipot.png" alt="Swahilipot Hub" className="h-8 w-auto" />
+          <img
+            src="/logo/swahilipot.png"
+            alt="Swahilipot Hub"
+            className="h-8 w-auto cursor-default pointer-events-none"
+          />
         </div>
 
         {/* Primary Nav */}
@@ -211,7 +222,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               href={item.href}
               icon={item.icon}
               label={item.label}
-              active={pathname === item.match}
+              active={isActive(pathname, item.match)}
             />
           ))}
         </nav>
@@ -231,7 +242,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
                   href={item.href}
                   icon={item.icon}
                   label={item.label}
-                  active={pathname === item.match}
+                  active={isActive(pathname, item.match)}
                 />
               ))}
             </nav>
@@ -267,7 +278,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
         {/* Mobile top bar */}
         <header className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3 lg:hidden">
-          <img src="/logo/swahilipot.png" alt="Swahilipot Hub" className="h-6 w-auto" />
+          <img
+            src="/logo/swahilipot.png"
+            alt="Swahilipot Hub"
+            className="h-6 w-auto cursor-default pointer-events-none"
+          />
           <span className="text-xs text-muted">{firstName}</span>
         </header>
 
@@ -282,9 +297,18 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             href={item.href}
             icon={item.icon}
             label={item.label}
-            active={pathname === item.match}
+            active={isActive(pathname, item.match)}
           />
         ))}
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] text-secondary transition-colors hover:text-sph-red"
+          aria-label="Log out"
+        >
+          <LogOut className="h-5 w-5" />
+          <span>Logout</span>
+        </button>
       </nav>
     </div>
   );
