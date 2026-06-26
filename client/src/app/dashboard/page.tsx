@@ -1,43 +1,39 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import Link from 'next/link';
-import { Zap } from 'lucide-react';
+import { Zap, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { get } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { CheckInButton, type CheckInPhase } from '@/components/dashboard/CheckInButton';
-import { WeekStrip } from '@/components/dashboard/WeekStrip';
+import { WeekStrip, type WeekDay } from '@/components/dashboard/WeekStrip';
 import { ScoreRing } from '@/components/dashboard/ScoreRing';
 import { AnnouncementCard } from '@/components/dashboard/AnnouncementCard';
 
-// ── Types ──
+// ── Types matching backend response shapes ──
+
+interface BackendAttendanceLog {
+  id: string;
+  userId: string;
+  date: string;
+  checkInTime: string | null;
+  checkOutTime: string | null;
+  status: string;
+}
 
 interface DashboardData {
   user: {
     fullName: string;
-    email: string;
     role: string;
-    department?: { name: string; shiftEnd: string };
-    cohort?: { name: string };
+    department: { id: string; name: string } | null;
   };
-  today: {
-    log: {
-      id: string;
-      status: string;
-      checkInTime: string | null;
-      checkOutTime: string | null;
-    } | null;
-  };
+  today: BackendAttendanceLog | null;
   streak: number;
   attendanceScore: number;
-  thisWeek: Array<{
-    day: string;
-    date: string;
-    status: string | null;
-    isToday: boolean;
-  }>;
-  recentHistory: Array<{ id: string; date: string; status: string }>;
+  thisWeek: BackendAttendanceLog[];
+  recentHistory: BackendAttendanceLog[];
 }
 
 interface AnnouncementsData {
@@ -48,6 +44,36 @@ interface AnnouncementsData {
     category: string;
     createdAt: string;
   }>;
+}
+
+// ── Helpers ──
+
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function buildWeekDays(logs: BackendAttendanceLog[]): WeekDay[] {
+  const byDate = new Map(logs.map((l) => [l.date, l]));
+  const todayStr = new Date().toISOString().split('T')[0];
+  const days: WeekDay[] = [];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - d.getDay() + 1 + i);
+    const dateStr = d.toISOString().split('T')[0];
+    const log = byDate.get(dateStr);
+    days.push({
+      day: DAY_NAMES[i],
+      date: dateStr,
+      status: log?.status ?? null,
+      isToday: dateStr === todayStr,
+    });
+  }
+  return days;
+}
+
+function getPhaseFromLog(log: BackendAttendanceLog | null): CheckInPhase {
+  if (!log) return 'idle';
+  if (log.checkOutTime) return 'checked-out';
+  return 'checked-in';
 }
 
 // ── Skeleton loaders ──
@@ -88,6 +114,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [announcements, setAnnouncements] = useState<AnnouncementsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Check-in state (can be updated optimistically)
   const [phase, setPhase] = useState<CheckInPhase>('idle');
@@ -95,30 +122,35 @@ export default function DashboardPage() {
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
   const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
 
-  useEffect(() => {
-    Promise.all([
-      get<DashboardData>('/dashboard/personal').catch(() => null),
-      get<AnnouncementsData>('/announcements').catch(() => null),
-    ]).then(([dashData, annData]) => {
-      if (dashData) {
-        setData(dashData);
-        // Initialize check-in state from today's log
-        const log = dashData.today.log;
-        if (log) {
-          if (log.checkOutTime) {
-            setPhase('checked-out');
-          } else {
-            setPhase('checked-in');
-          }
-          setCheckInStatus(log.status);
-          setCheckInTime(log.checkInTime);
-          setCheckOutTime(log.checkOutTime);
-        }
-      }
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [dashData, annData] = await Promise.all([
+        get<DashboardData>('/dashboard/personal'),
+        get<AnnouncementsData>('/announcements'),
+      ]);
+      setData(dashData);
       if (annData) setAnnouncements(annData);
+
+      // Initialize check-in state from today's log
+      const log = dashData.today;
+      if (log) {
+        setPhase(getPhaseFromLog(log));
+        setCheckInStatus(log.status);
+        setCheckInTime(log.checkInTime);
+        setCheckOutTime(log.checkOutTime);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard');
+    } finally {
       setIsLoading(false);
-    });
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleCheckedIn = (log: { id: string; status: string; checkInTime: string }) => {
     setPhase('checked-in');
@@ -131,15 +163,29 @@ export default function DashboardPage() {
     setCheckOutTime(log.checkOutTime);
   };
 
-  const firstName =
-    data?.user?.fullName?.split(' ')[0] ??
-    authUser?.fullName?.split(' ')[0] ??
-    authUser?.email?.split('@')[0] ??
-    '';
+  const firstName = data?.user?.fullName?.split(' ')[0] ?? authUser?.fullName?.split(' ')[0] ?? '';
 
-  const department = data?.user.department?.name ?? '';
-  const cohort = data?.user.cohort?.name;
-  const subtitle = [department, cohort].filter(Boolean).join(' · ');
+  const subtitle = data?.user?.department?.name ?? '';
+  const weekDays = data?.thisWeek ? buildWeekDays(data.thisWeek) : [];
+
+  // Error state
+  if (error && !isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-16">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sph-red/10">
+          <AlertTriangle className="h-7 w-7 text-sph-red" />
+        </div>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+          Failed to load dashboard
+        </h2>
+        <p className="max-w-sm text-center text-sm text-muted">{error}</p>
+        <Button variant="outline" onClick={fetchData} className="mt-2">
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -176,7 +222,7 @@ export default function DashboardPage() {
             onCheckedIn={handleCheckedIn}
             onCheckedOut={handleCheckedOut}
             role={data?.user.role ?? authUser?.role ?? ''}
-            departmentShiftEnd={data?.user.department?.shiftEnd}
+            departmentShiftEnd={undefined}
             checkInTimeIso={checkInTime}
           />
         )}
@@ -192,7 +238,7 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : (
-          <WeekStrip days={data?.thisWeek ?? []} />
+          <WeekStrip days={weekDays} />
         )}
       </div>
 

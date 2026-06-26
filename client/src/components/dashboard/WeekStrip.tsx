@@ -1,4 +1,4 @@
-interface WeekDay {
+export interface WeekDay {
   day: string;
   date: string;
   status: string | null;
