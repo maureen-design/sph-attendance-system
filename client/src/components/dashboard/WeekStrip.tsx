@@ -24,7 +24,7 @@ function getStatusColor(status: string | null): string {
     case 'UNRESOLVED':
       return 'bg-sph-red';
     case 'DISPUTED':
-      return 'bg-[#64748B]';
+      return 'bg-sph-neutral';
     default:
       return 'surface-elevated border border-[var(--border)]';
   }

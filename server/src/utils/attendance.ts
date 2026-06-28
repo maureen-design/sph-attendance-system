@@ -1,24 +1,15 @@
-﻿import { AttendanceStatus } from '@prisma/client';
-import { toZonedTime, fromZonedTime } from 'date-fns-tz';
-
-/**
- * Parses a "HH:mm" time string into hours and minutes.
- */
-function parseTime(timeStr: string): { hours: number; minutes: number } {
-  const [h, m] = timeStr.split(':').map(Number);
-  return { hours: h, minutes: m };
-}
+﻿import { format } from 'date-fns';
+import { fromZonedTime } from 'date-fns-tz';
+import { AttendanceStatus } from '@prisma/client';
 
 /**
  * Builds a UTC Date for today (in the given timezone) at the specified HH:mm.
- * The HH:mm is interpreted in the org's local timezone, then converted to UTC.
+ * The HH:mm is interpreted in the org's local timezone, then converted to UTC using
+ * date-fns-tz's timezone-safe API (avoids system-local setHours).
  */
 function buildTimeOnDate(date: Date, timeStr: string, timezone: string): Date {
-  const { hours, minutes } = parseTime(timeStr);
-  const zoned = toZonedTime(date, timezone);
-  zoned.setHours(hours, minutes, 0, 0);
-  // Convert local (zoned) wall-clock time back to a proper UTC instant
-  return fromZonedTime(zoned, timezone);
+  const dateStr = format(date, 'yyyy-MM-dd', { timeZone: timezone });
+  return fromZonedTime(`${dateStr}T${timeStr}:00`, timezone);
 }
 
 /**

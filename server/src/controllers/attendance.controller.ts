@@ -64,8 +64,14 @@ export async function checkIn(req: Request, res: Response, next: NextFunction): 
     });
 
     if (existing) {
-      respond.error(res, 'Already checked in today', 409);
-      return;
+      // If the existing log has no check-in time, it's a placeholder (seed/auto-created).
+      // Allow overwriting it with the real check-in.
+      if (existing.checkInTime === null) {
+        await prisma.attendanceLog.delete({ where: { id: existing.id } });
+      } else {
+        respond.error(res, 'Already checked in today', 409);
+        return;
+      }
     }
 
     // 5) Get schedule for user's role in their department
@@ -91,6 +97,11 @@ export async function checkIn(req: Request, res: Response, next: NextFunction): 
       orgTimezone,
     );
 
+    if (status === 'UNRESOLVED') {
+      respond.error(res, 'Check-in failed: could not determine attendance status', 500);
+      return;
+    }
+
     // 7) Create attendance log
     const log = await prisma.attendanceLog.create({
       data: {
@@ -103,6 +114,11 @@ export async function checkIn(req: Request, res: Response, next: NextFunction): 
         status,
       },
     });
+
+    if (!log.checkInTime) {
+      respond.error(res, 'Check-in failed: check-in time was not stored', 500);
+      return;
+    }
 
     // 8) Audit log
     await prisma.auditLog.create({

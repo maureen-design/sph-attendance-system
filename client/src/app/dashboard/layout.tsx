@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -13,6 +13,8 @@ import {
   ClipboardList,
   Settings,
   LogOut,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { AuthGuard } from '@/components/guards/AuthGuard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -111,6 +113,27 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isLightMode, setIsLightMode] = useState(false);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('sph-theme');
+    if (savedTheme === 'light') {
+      setIsLightMode(true);
+      document.documentElement.classList.add('light');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newMode = !isLightMode;
+    setIsLightMode(newMode);
+    if (newMode) {
+      document.documentElement.classList.add('light');
+      localStorage.setItem('sph-theme', 'light');
+    } else {
+      document.documentElement.classList.remove('light');
+      localStorage.setItem('sph-theme', 'dark');
+    }
+  };
 
   const firstName = user?.fullName?.split(' ')[0] ?? 'User';
   const initials = user ? getInitials(user.fullName) : '??';
@@ -265,6 +288,14 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
           </div>
           <button
             type="button"
+            onClick={toggleTheme}
+            className="text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+            aria-label="Toggle theme"
+          >
+            {isLightMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+          <button
+            type="button"
             onClick={handleLogout}
             className="text-[var(--text-muted)] transition-colors hover:text-sph-red"
             aria-label="Log out"
@@ -300,6 +331,14 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             active={isActive(pathname, item.match)}
           />
         ))}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] text-secondary transition-colors hover:text-[var(--text-primary)]"
+          aria-label="Toggle theme"
+        >
+          {isLightMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </button>
         <button
           type="button"
           onClick={handleLogout}

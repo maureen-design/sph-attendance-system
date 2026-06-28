@@ -21,7 +21,23 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`dark ${plusJakartaSans.variable}`} suppressHydrationWarning>
+    <html lang="en" className={plusJakartaSans.variable} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                const savedTheme = localStorage.getItem('sph-theme');
+                if (savedTheme === 'light') {
+                  document.documentElement.classList.add('light');
+                } else {
+                  document.documentElement.classList.add('dark');
+                }
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className="font-sans">
         <AuthProvider>{children}</AuthProvider>
       </body>

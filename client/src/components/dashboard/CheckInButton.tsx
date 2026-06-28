@@ -71,7 +71,8 @@ function formatTime(isoStr: string | null): string {
 
 function statusBadgeClass(status: string | null): string {
   if (!status) return 'bg-surface-elevated text-secondary';
-  if (status === 'LATE') return 'bg-sph-amber/20 text-sph-amber';
+  if (status === 'LATE' || status === 'LEFT_EARLY') return 'bg-sph-amber/20 text-sph-amber';
+  if (status === 'UNRESOLVED') return 'bg-sph-red/20 text-sph-red';
   return 'bg-sph-green/20 text-sph-green';
 }
 

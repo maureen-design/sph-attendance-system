@@ -14,7 +14,7 @@ export function ScoreRing({ score, size = 80 }: ScoreRingProps) {
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (animated / 100) * circumference;
 
-  const color = score >= 80 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444';
+  const color = score >= 80 ? 'var(--accent)' : score >= 50 ? 'var(--warning)' : 'var(--error)';
 
   useEffect(() => {
     const timer = setTimeout(() => setAnimated(score), 100);

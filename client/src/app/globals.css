@@ -6,18 +6,30 @@
   --background: #0F172A;
   --surface: #1E293B;
   --surface-elevated: #334155;
-  --border: #334155;
-  --text-primary: #F8F9FA;
+  --border: rgba(255, 255, 255, 0.1);
+  --text-primary: #F8FAFC;
   --text-secondary: #94A3B8;
   --text-muted: #64748B;
+  --accent: #10B981;
+  --accent-hover: #059669;
+  --error: #EF4444;
+  --warning: #F59E0B;
+  --info: #2563EB;
 }
 
 .light {
-  --background: #F8F9FA;
-  --surface: #FFFFFF;
-  --border: #E2E8F0;
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
+  --background: #F5F0E8;
+  --surface: #FAF7F2;
+  --surface-elevated: #FFFFFF;
+  --border: #E8E0D4;
+  --text-primary: #1E293B;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+  --accent: #10B981;
+  --accent-hover: #059669;
+  --error: #EF4444;
+  --warning: #F59E0B;
+  --info: #2563EB;
 }
 
 * {
@@ -28,7 +40,7 @@
 body {
   background-color: var(--background);
   color: var(--text-primary);
-  transition: background-color 200ms, color 200ms;
+  transition: background-color 150ms, color 150ms;
   font-family: var(--font-sans), sans-serif;
 }
 
