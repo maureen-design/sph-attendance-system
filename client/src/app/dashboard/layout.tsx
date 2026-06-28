@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -231,9 +232,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         {/* Logo — home link */}
         <div className="flex flex-col px-5 pt-6 pb-6">
           <Link href="/">
-            <img
+            <Image
               src="/logo/swahilipot.png"
               alt="Swahilipot Hub"
+              width={190}
+              height={32}
               className="h-8 w-auto cursor-pointer transition-opacity hover:opacity-80"
             />
           </Link>
@@ -312,9 +315,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         {/* Mobile top bar */}
         <header className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3 lg:hidden">
           <Link href="/">
-            <img
+            <Image
               src="/logo/swahilipot.png"
               alt="Swahilipot Hub"
+              width={142}
+              height={24}
               className="h-6 w-auto cursor-pointer transition-opacity hover:opacity-80"
             />
           </Link>

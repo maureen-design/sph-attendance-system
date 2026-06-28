@@ -117,6 +117,51 @@ export function CheckInButton({
   const [error, setError] = useState('');
   const [timeValidationError, setTimeValidationError] = useState('');
 
+  // Validate self-report time (must be before any conditional return)
+  useEffect(() => {
+    if (dialogMode !== 'self-report' || !selfReportTime) {
+      setTimeValidationError('');
+      return;
+    }
+
+    const validationErrors: string[] = [];
+
+    if (departmentShiftEnd) {
+      const shiftEndParts = departmentShiftEnd.split(':');
+      const shiftEndHours = parseInt(shiftEndParts[0], 10);
+      const shiftEndMinutes = parseInt(shiftEndParts[1], 10);
+      const shiftEndTotalMinutes = shiftEndHours * 60 + shiftEndMinutes;
+
+      const timeParts = selfReportTime.split(':');
+      const hours = parseInt(timeParts[0], 10);
+      const minutes = parseInt(timeParts[1], 10);
+      const totalMinutes = hours * 60 + minutes;
+
+      if (totalMinutes > shiftEndTotalMinutes) {
+        validationErrors.push('Time cannot be after shift end');
+      }
+    }
+
+    if (checkInTimeIso) {
+      const checkInDate = new Date(checkInTimeIso);
+      const today = new Date();
+      const [hours, minutes] = selfReportTime.split(':').map(Number);
+      const reportedDate = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+        hours,
+        minutes,
+      );
+
+      if (reportedDate <= checkInDate) {
+        validationErrors.push('Time must be after check-in time');
+      }
+    }
+
+    setTimeValidationError(validationErrors.length > 0 ? validationErrors.join('. ') : '');
+  }, [selfReportTime, dialogMode, departmentShiftEnd, checkInTimeIso]);
+
   // ── SUPER ADMIN: show admin card instead of check-in ──
   if (role === 'SUPER_ADMIN') {
     return (
@@ -204,53 +249,6 @@ export function CheckInButton({
       setIsSubmitting(false);
     }
   };
-
-  // Validate self-report time
-  useEffect(() => {
-    if (dialogMode !== 'self-report' || !selfReportTime) {
-      setTimeValidationError('');
-      return;
-    }
-
-    const validationErrors: string[] = [];
-
-    // Check against shift end
-    if (departmentShiftEnd) {
-      const shiftEndParts = departmentShiftEnd.split(':');
-      const shiftEndHours = parseInt(shiftEndParts[0], 10);
-      const shiftEndMinutes = parseInt(shiftEndParts[1], 10);
-      const shiftEndTotalMinutes = shiftEndHours * 60 + shiftEndMinutes;
-
-      const timeParts = selfReportTime.split(':');
-      const hours = parseInt(timeParts[0], 10);
-      const minutes = parseInt(timeParts[1], 10);
-      const totalMinutes = hours * 60 + minutes;
-
-      if (totalMinutes > shiftEndTotalMinutes) {
-        validationErrors.push('Time cannot be after shift end');
-      }
-    }
-
-    // Check against check-in time
-    if (checkInTimeIso) {
-      const checkInDate = new Date(checkInTimeIso);
-      const today = new Date();
-      const [hours, minutes] = selfReportTime.split(':').map(Number);
-      const reportedDate = new Date(
-        today.getFullYear(),
-        today.getMonth(),
-        today.getDate(),
-        hours,
-        minutes,
-      );
-
-      if (reportedDate <= checkInDate) {
-        validationErrors.push('Time must be after check-in time');
-      }
-    }
-
-    setTimeValidationError(validationErrors.length > 0 ? validationErrors.join('. ') : '');
-  }, [selfReportTime, dialogMode, departmentShiftEnd, checkInTimeIso]);
 
   // ── CHECKED OUT ──
   if (phase === 'checked-out') {

@@ -294,7 +294,7 @@ export async function createDepartments(
     const failed: { index: number; name: string; error: string }[] = [];
 
     // Use transaction for atomicity
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (_tx) => {
       for (let i = 0; i < departments.length; i++) {
         const dept = departments[i];
         try {
@@ -528,7 +528,7 @@ export async function createCohorts(
     const failed: { index: number; name: string; error: string }[] = [];
 
     // Use transaction for atomicity
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (_tx) => {
       for (let i = 0; i < cohorts.length; i++) {
         const cohortData = cohorts[i];
         try {
@@ -720,8 +720,23 @@ export async function getInviteLinks(
       },
     });
 
+    interface InviteLinkRow {
+      id: string;
+      token: string;
+      cohortId: string;
+      cohort: { id: string; name: string };
+      departmentId: string | null;
+      department: { id: string; name: string } | null;
+      isActive: boolean;
+      revokedAt: Date | null;
+      usedCount: number;
+      maxUses: number;
+      expiresAt: Date;
+      createdAt: Date;
+    }
+
     respond.success(res, {
-      inviteLinks: inviteLinks.map((link: any) => ({
+      inviteLinks: inviteLinks.map((link: InviteLinkRow) => ({
         id: link.id,
         token: link.token,
         cohortId: link.cohortId,

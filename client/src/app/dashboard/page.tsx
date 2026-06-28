@@ -782,27 +782,17 @@ export default function DashboardPage() {
           {isLoading ? (
             <CheckInButtonSkeleton />
           ) : (
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-sph-green/20">
-                <div className="h-3 w-3 rounded-full bg-sph-green" />
-              </div>
-              <h2 className="text-xl font-semibold text-[var(--text-primary)]">Checked In</h2>
-              <p className="text-sm text-secondary">
-                {formatTime(checkInTime)} · {checkInStatus}
-              </p>
-              {subtitle && <p className="text-xs text-muted">{subtitle}</p>}
-              <CheckInButton
-                phase={phase}
-                status={checkInStatus}
-                checkInTime={checkInTime}
-                checkOutTime={checkOutTime}
-                onCheckedIn={handleCheckedIn}
-                onCheckedOut={handleCheckedOut}
-                role={role}
-                departmentShiftEnd={undefined}
-                checkInTimeIso={checkInTime}
-              />
-            </div>
+            <CheckInButton
+              phase={phase}
+              status={checkInStatus}
+              checkInTime={checkInTime}
+              checkOutTime={checkOutTime}
+              onCheckedIn={handleCheckedIn}
+              onCheckedOut={handleCheckedOut}
+              role={role}
+              departmentShiftEnd={undefined}
+              checkInTimeIso={checkInTime}
+            />
           )}
         </div>
 

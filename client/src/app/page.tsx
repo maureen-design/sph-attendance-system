@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Sun, Moon } from 'lucide-react';
 
 export default function Home() {
@@ -40,7 +41,13 @@ export default function Home() {
 
       <div className="flex flex-col items-center text-center">
         <div className="mb-6 flex flex-col items-center">
-          <img src="/logo/swahilipot.png" alt="Swahilipot Hub" className="h-16 w-auto" />
+          <Image
+            src="/logo/swahilipot.png"
+            alt="Swahilipot Hub"
+            width={380}
+            height={64}
+            className="h-16 w-auto"
+          />
         </div>
 
         <h1>
