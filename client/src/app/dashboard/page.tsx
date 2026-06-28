@@ -115,7 +115,7 @@ function statusBadgeClass(status: string | null): string {
 }
 
 function buildWeekDays(logs: BackendAttendanceLog[]): WeekDay[] {
-  const byDate = new Map(logs.map((l) => [l.date, l]));
+  const byDate = new Map(logs.map((l) => [l.date.split('T')[0], l]));
   const todayStr = new Date().toISOString().split('T')[0];
   const days: WeekDay[] = [];
   for (let i = 0; i < 7; i++) {
@@ -135,6 +135,7 @@ function buildWeekDays(logs: BackendAttendanceLog[]): WeekDay[] {
 
 function getPhaseFromLog(log: BackendAttendanceLog | null): CheckInPhase {
   if (!log) return 'idle';
+  if (!log.checkInTime) return 'idle';
   if (log.checkOutTime) return 'checked-out';
   return 'checked-in';
 }
@@ -573,6 +574,7 @@ export default function DashboardPage() {
               onCheckedIn={handleCheckedIn}
               onCheckedOut={handleCheckedOut}
               role={role}
+              departmentName={subtitle}
               departmentShiftEnd={undefined}
               checkInTimeIso={checkInTime}
             />
@@ -772,7 +774,6 @@ export default function DashboardPage() {
                 </h1>
                 <span className="h-2.5 w-2.5 rounded-full bg-sph-green" title="Connected" />
               </div>
-              {subtitle && <p className="text-sm text-secondary">{subtitle}</p>}
             </>
           )}
         </div>
@@ -790,6 +791,7 @@ export default function DashboardPage() {
               onCheckedIn={handleCheckedIn}
               onCheckedOut={handleCheckedOut}
               role={role}
+              departmentName={subtitle}
               departmentShiftEnd={undefined}
               checkInTimeIso={checkInTime}
             />
@@ -893,6 +895,7 @@ export default function DashboardPage() {
             onCheckedIn={handleCheckedIn}
             onCheckedOut={handleCheckedOut}
             role={role}
+            departmentName={subtitle}
             departmentShiftEnd={undefined}
             checkInTimeIso={checkInTime}
           />

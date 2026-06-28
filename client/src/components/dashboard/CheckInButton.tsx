@@ -26,6 +26,7 @@ interface CheckInButtonProps {
   onCheckedIn: (log: { id: string; status: string; checkInTime: string }) => void;
   onCheckedOut: (log: { id: string; status: string; checkOutTime: string }) => void;
   role: string;
+  departmentName?: string;
   departmentShiftEnd?: string;
   checkInTimeIso?: string | null;
 }
@@ -106,6 +107,7 @@ export function CheckInButton({
   onCheckedIn,
   onCheckedOut,
   role,
+  departmentName,
   departmentShiftEnd,
   checkInTimeIso,
 }: CheckInButtonProps) {
@@ -269,8 +271,9 @@ export function CheckInButton({
   if (phase === 'checked-in') {
     return (
       <div className="flex flex-col items-center gap-4">
+        {departmentName && <p className="text-sm text-secondary">{departmentName}</p>}
         <div className={`rounded-full px-5 py-2 text-sm font-semibold ${statusBadgeClass(status)}`}>
-          Checked In · {status}
+          {status ?? 'Checked In'}
         </div>
         <p className="text-sm text-secondary">Checked in at {formatTime(checkInTime)}</p>
         <button
