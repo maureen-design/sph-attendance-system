@@ -22,7 +22,10 @@ export function ScoreRing({ score, size = 80 }: ScoreRingProps) {
   }, [score]);
 
   return (
-    <div className="relative" style={{ width: size, height: size }}>
+    <div
+      className="relative flex items-center justify-center"
+      style={{ width: size, height: size }}
+    >
       <svg width={size} height={size} className="-rotate-90">
         <circle
           cx={size / 2}

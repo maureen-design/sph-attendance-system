@@ -98,6 +98,22 @@ interface DisputesData {
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+function formatTime(isoStr: string | null): string {
+  if (!isoStr) return '--:--';
+  return new Date(isoStr).toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+function statusBadgeClass(status: string | null): string {
+  if (!status) return 'bg-surface-elevated text-secondary';
+  if (status === 'LATE' || status === 'LEFT_EARLY') return 'bg-sph-amber/20 text-sph-amber';
+  if (status === 'UNRESOLVED') return 'bg-sph-red/20 text-sph-red';
+  return 'bg-sph-green/20 text-sph-green';
+}
+
 function buildWeekDays(logs: BackendAttendanceLog[]): WeekDay[] {
   const byDate = new Map(logs.map((l) => [l.date, l]));
   const todayStr = new Date().toISOString().split('T')[0];
@@ -639,7 +655,222 @@ export default function DashboardPage() {
     );
   }
 
-  // ── STAFF / MEMBER / ATTACHEE DASHBOARD (unchanged) ──
+  // ── STAFF / MEMBER / ATTACHEE DASHBOARD (3-state redesign) ──
+
+  // STATE C: After check-out
+  if (phase === 'checked-out') {
+    return (
+      <div className="flex flex-col gap-6">
+        {/* Greeting */}
+        <div>
+          {isLoading ? (
+            <GreetingSkeleton />
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">
+                  {firstName ? `Habari, ${firstName}` : 'Habari'}
+                </h1>
+                <span className="h-2.5 w-2.5 rounded-full bg-sph-green" title="Connected" />
+              </div>
+              {subtitle && <p className="text-sm text-secondary">{subtitle}</p>}
+            </>
+          )}
+        </div>
+
+        {/* Today Summary */}
+        <div className="rounded-2xl surface p-6">
+          {isLoading ? (
+            <CheckInButtonSkeleton />
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-sph-green/20">
+                <div className="h-3 w-3 rounded-full bg-sph-green" />
+              </div>
+              <h2 className="text-xl font-semibold text-[var(--text-primary)]">Day Complete</h2>
+              <p className="text-sm text-secondary">
+                {formatTime(checkInTime)} — {formatTime(checkOutTime)}
+              </p>
+              <div className="flex items-center gap-2">
+                <Badge className={statusBadgeClass(checkInStatus)}>{checkInStatus}</Badge>
+              </div>
+              <Link
+                href="/dashboard/worklog"
+                className="rounded-xl bg-sph-blue px-6 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5"
+              >
+                View Work Log
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Score Ring - only visible after check-out */}
+        <div className="rounded-2xl surface p-6">
+          {isLoading ? (
+            <Skeleton className="h-32 rounded-lg bg-[var(--surface-elevated)]" />
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <h2 className="text-sm font-semibold text-[var(--text-primary)]">Your Score</h2>
+              <ScoreRing score={data?.attendanceScore ?? 0} size={140} />
+              <p className="text-lg font-bold text-[var(--text-primary)]">
+                {data?.attendanceScore ?? 0}% Attendance
+              </p>
+              <p className="text-sm text-muted">{data?.streak ?? 0}-day streak!</p>
+            </div>
+          )}
+        </div>
+
+        {/* Week Strip */}
+        <div className="rounded-2xl surface p-5">
+          <h2 className="mb-4 text-sm font-semibold text-[var(--text-primary)]">This Week</h2>
+          {isLoading ? (
+            <div className="flex justify-between">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-8 w-8 rounded-full bg-[var(--surface-elevated)]" />
+              ))}
+            </div>
+          ) : (
+            <WeekStrip days={weekDays} />
+          )}
+        </div>
+
+        {/* Announcements */}
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Announcements</h2>
+            <Link href="/dashboard/announcements" className="text-xs text-sph-blue hover:underline">
+              View all →
+            </Link>
+          </div>
+          {isLoading ? (
+            <div className="flex flex-col gap-3">
+              {[1, 2].map((i) => (
+                <Skeleton key={i} className="h-16 rounded-xl bg-[var(--surface-elevated)]" />
+              ))}
+            </div>
+          ) : (
+            <AnnouncementCard announcements={announcements?.announcements.slice(0, 2) ?? []} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // STATE B: After check-in, not checked out
+  if (phase === 'checked-in') {
+    return (
+      <div className="flex flex-col gap-6">
+        {/* Greeting */}
+        <div>
+          {isLoading ? (
+            <GreetingSkeleton />
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">
+                  {firstName ? `Habari, ${firstName}` : 'Habari'}
+                </h1>
+                <span className="h-2.5 w-2.5 rounded-full bg-sph-green" title="Connected" />
+              </div>
+              {subtitle && <p className="text-sm text-secondary">{subtitle}</p>}
+            </>
+          )}
+        </div>
+
+        {/* Today Card */}
+        <div className="rounded-2xl surface p-6">
+          {isLoading ? (
+            <CheckInButtonSkeleton />
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-sph-green/20">
+                <div className="h-3 w-3 rounded-full bg-sph-green" />
+              </div>
+              <h2 className="text-xl font-semibold text-[var(--text-primary)]">Checked In</h2>
+              <p className="text-sm text-secondary">
+                {formatTime(checkInTime)} · {checkInStatus}
+              </p>
+              {subtitle && <p className="text-xs text-muted">{subtitle}</p>}
+              <CheckInButton
+                phase={phase}
+                status={checkInStatus}
+                checkInTime={checkInTime}
+                checkOutTime={checkOutTime}
+                onCheckedIn={handleCheckedIn}
+                onCheckedOut={handleCheckedOut}
+                role={role}
+                departmentShiftEnd={undefined}
+                checkInTimeIso={checkInTime}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Week Strip */}
+        <div className="rounded-2xl surface p-5">
+          <h2 className="mb-4 text-sm font-semibold text-[var(--text-primary)]">This Week</h2>
+          {isLoading ? (
+            <div className="flex justify-between">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-8 w-8 rounded-full bg-[var(--surface-elevated)]" />
+              ))}
+            </div>
+          ) : (
+            <WeekStrip days={weekDays} />
+          )}
+        </div>
+
+        {/* Quick Actions */}
+        <div className="rounded-2xl surface p-5">
+          <h2 className="mb-4 text-sm font-semibold text-[var(--text-primary)]">Quick Actions</h2>
+          <div className="flex flex-col gap-3">
+            <Link
+              href="/dashboard/worklog"
+              className="flex items-center justify-between rounded-xl border border-[var(--border)] p-4 transition-colors hover:bg-[var(--surface-elevated)]"
+            >
+              <span className="text-sm text-[var(--text-primary)]">Submit Work Log</span>
+              <ArrowRight className="h-4 w-4 text-muted" />
+            </Link>
+            <Link
+              href="/dashboard/history"
+              className="flex items-center justify-between rounded-xl border border-[var(--border)] p-4 transition-colors hover:bg-[var(--surface-elevated)]"
+            >
+              <span className="text-sm text-[var(--text-primary)]">View History</span>
+              <ArrowRight className="h-4 w-4 text-muted" />
+            </Link>
+            <Link
+              href="/dashboard/disputes"
+              className="flex items-center justify-between rounded-xl border border-[var(--border)] p-4 transition-colors hover:bg-[var(--surface-elevated)]"
+            >
+              <span className="text-sm text-[var(--text-primary)]">File Dispute</span>
+              <ArrowRight className="h-4 w-4 text-muted" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Announcements */}
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Announcements</h2>
+            <Link href="/dashboard/announcements" className="text-xs text-sph-blue hover:underline">
+              View all →
+            </Link>
+          </div>
+          {isLoading ? (
+            <div className="flex flex-col gap-3">
+              {[1, 2].map((i) => (
+                <Skeleton key={i} className="h-16 rounded-xl bg-[var(--surface-elevated)]" />
+              ))}
+            </div>
+          ) : (
+            <AnnouncementCard announcements={announcements?.announcements.slice(0, 2) ?? []} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // STATE A: Before check-in
   return (
     <div className="flex flex-col gap-6">
       {/* Greeting */}
@@ -652,18 +883,15 @@ export default function DashboardPage() {
               <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">
                 {firstName ? `Habari, ${firstName}` : 'Habari'}
               </h1>
-              <span
-                className={`h-2.5 w-2.5 rounded-full ${data ? 'bg-sph-green' : 'bg-sph-amber'}`}
-                title={data ? 'Connected' : 'Syncing'}
-              />
+              <span className="h-2.5 w-2.5 rounded-full bg-sph-green" title="Connected" />
             </div>
             {subtitle && <p className="text-sm text-secondary">{subtitle}</p>}
           </>
         )}
       </div>
 
-      {/* Check-In */}
-      <div className="rounded-2xl surface p-6">
+      {/* Check-In Hero */}
+      <div className="rounded-2xl surface p-8">
         {isLoading ? (
           <CheckInButtonSkeleton />
         ) : (
@@ -681,78 +909,35 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Week Strip */}
-      <div className="rounded-2xl surface p-5">
-        <h2 className="mb-4 text-sm font-semibold text-[var(--text-primary)]">This Week</h2>
-        {isLoading ? (
-          <div className="flex justify-between">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} className="h-8 w-8 rounded-full bg-[var(--surface-elevated)]" />
-            ))}
-          </div>
-        ) : (
-          <WeekStrip days={weekDays} />
-        )}
+      {/* Collapsed Week Strip */}
+      <div className="flex items-center justify-between rounded-2xl surface px-5 py-4">
+        <span className="text-sm text-secondary">
+          This week: {weekDays.filter((d) => d.status).length}/5 days
+        </span>
+        <Link href="/dashboard/history" className="text-xs text-sph-blue hover:underline">
+          Tap to see →
+        </Link>
       </div>
 
-      {/* Metrics */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-2xl surface p-5">
-          {isLoading ? (
-            <Skeleton className="h-16 rounded-lg bg-[var(--surface-elevated)]" />
-          ) : (
-            <div className="flex flex-col gap-1">
-              <p className="flex items-center gap-1 text-2xl font-bold text-[var(--text-primary)]">
-                <Zap className="h-4 w-4 text-sph-amber" /> {data?.streak ?? 0}
+      {/* Announcements - single line preview */}
+      {announcements && announcements.announcements.length > 0 && (
+        <div className="rounded-2xl surface px-5 py-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-sph-blue" />
+            <div className="flex-1">
+              <p className="text-sm text-[var(--text-primary)]">
+                {announcements.announcements[0].title}
               </p>
-              <p className="text-xs text-muted">
-                {(data?.streak ?? 0) > 0 ? 'days on time' : 'Start your streak today'}
-              </p>
+              <Link
+                href="/dashboard/announcements"
+                className="mt-1 text-xs text-sph-blue hover:underline"
+              >
+                View all announcements →
+              </Link>
             </div>
-          )}
-        </div>
-        <div className="flex items-center gap-4 rounded-2xl surface p-5">
-          {isLoading ? (
-            <Skeleton className="h-16 w-16 rounded-full bg-[var(--surface-elevated)]" />
-          ) : (
-            <>
-              <ScoreRing score={data?.attendanceScore ?? 0} />
-              <div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">
-                  {data?.attendanceScore ?? 0}%
-                </p>
-                <p className="text-xs text-muted">Attendance score</p>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Announcements */}
-      <div>
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Announcements</h2>
-            {announcements && (
-              <span className="rounded-full bg-sph-green/20 px-2 py-0.5 text-[10px] font-bold text-sph-green">
-                {announcements.announcements.length}
-              </span>
-            )}
           </div>
-          <Link href="/dashboard/announcements" className="text-xs text-sph-blue hover:underline">
-            View all →
-          </Link>
         </div>
-        {isLoading ? (
-          <div className="flex flex-col gap-3">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-16 rounded-xl bg-[var(--surface-elevated)]" />
-            ))}
-          </div>
-        ) : (
-          <AnnouncementCard announcements={announcements?.announcements.slice(0, 3) ?? []} />
-        )}
-      </div>
+      )}
     </div>
   );
 }

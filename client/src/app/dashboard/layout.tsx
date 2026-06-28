@@ -228,13 +228,15 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-[var(--background)]">
       {/* ── Desktop Sidebar ── */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-[var(--border)] surface lg:flex">
-        {/* Logo — visual anchor only */}
+        {/* Logo — home link */}
         <div className="flex flex-col px-5 pt-6 pb-6">
-          <img
-            src="/logo/swahilipot.png"
-            alt="Swahilipot Hub"
-            className="h-8 w-auto cursor-default pointer-events-none"
-          />
+          <Link href="/">
+            <img
+              src="/logo/swahilipot.png"
+              alt="Swahilipot Hub"
+              className="h-8 w-auto cursor-pointer transition-opacity hover:opacity-80"
+            />
+          </Link>
         </div>
 
         {/* Primary Nav */}
@@ -309,11 +311,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
         {/* Mobile top bar */}
         <header className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3 lg:hidden">
-          <img
-            src="/logo/swahilipot.png"
-            alt="Swahilipot Hub"
-            className="h-6 w-auto cursor-default pointer-events-none"
-          />
+          <Link href="/">
+            <img
+              src="/logo/swahilipot.png"
+              alt="Swahilipot Hub"
+              className="h-6 w-auto cursor-pointer transition-opacity hover:opacity-80"
+            />
+          </Link>
           <span className="text-xs text-muted">{firstName}</span>
         </header>
 

@@ -97,6 +97,7 @@ export async function checkIn(req: Request, res: Response, next: NextFunction): 
       orgTimezone,
     );
 
+    // UNRESOLVED should never happen here since we have a valid check-in time
     if (status === 'UNRESOLVED') {
       respond.error(res, 'Check-in failed: could not determine attendance status', 500);
       return;
