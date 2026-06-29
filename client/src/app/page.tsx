@@ -32,20 +32,18 @@ export default function Home() {
     <main className="relative flex min-h-screen flex-col overflow-hidden px-6">
       {/* Background */}
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <Image
-          src="/images/swahili.jpg"
-          alt=""
-          fill
-          sizes="100vw"
-          className={`object-cover ${isLightMode ? 'opacity-[0.04]' : 'opacity-[0.05]'}`}
-          priority
-          aria-hidden
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage: "url('/images/swahili.jpg')",
+            opacity: isLightMode ? 0.06 : 0.08,
+          }}
         />
         <div
           className={`absolute inset-0 ${
             isLightMode
-              ? 'bg-gradient-to-b from-[#F5F0E8]/95 via-[#FAF7F2]/90 to-[#F5F0E8]/95'
-              : 'bg-gradient-to-b from-[#0F172A]/95 via-[#0F172A]/90 to-[#0F172A]/95'
+              ? 'bg-gradient-to-b from-[#F5F0E8]/90 via-[#FAF7F2]/85 to-[#F5F0E8]/90'
+              : 'bg-gradient-to-b from-[#0F172A]/90 via-[#0F172A]/85 to-[#0F172A]/90'
           }`}
         />
       </div>
@@ -54,7 +52,7 @@ export default function Home() {
       <button
         type="button"
         onClick={toggleTheme}
-        className="absolute top-4 right-4 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)] transition-all duration-150 hover:text-[var(--text-primary)]"
+        className="absolute top-4 right-4 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-muted)] transition-all duration-150 hover:text-[var(--text-primary)]"
         aria-label="Toggle theme"
       >
         {isLightMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
@@ -81,10 +79,10 @@ export default function Home() {
           <div className="mt-8 h-px w-20 bg-[var(--accent)]/30" />
 
           {/* Heading */}
-          <h1 className="mt-10 text-center text-4xl font-bold leading-[0.9] text-[var(--text-primary)] sm:text-5xl lg:text-6xl">
-            <span>Attendance,</span>
+          <h1 className="mt-10 text-center text-4xl font-bold leading-[0.9] sm:text-5xl lg:text-6xl">
+            <span className="text-[var(--text-primary)]">Attendance,</span>
             <br />
-            <span>reimagined.</span>
+            <span className="text-[var(--accent)]/60 font-normal">reimagined.</span>
           </h1>
 
           {/* Tagline */}
