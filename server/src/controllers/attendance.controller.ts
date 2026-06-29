@@ -34,6 +34,18 @@ export async function checkIn(req: Request, res: Response, next: NextFunction): 
       return;
     }
 
+    // Status guard: only ACTIVE users can check in
+    if (user.status !== 'ACTIVE') {
+      if (user.status === 'PENDING_APPROVAL') {
+        respond.error(res, 'Your account is pending approval from a supervisor', 403);
+      } else if (user.status === 'REJECTED') {
+        respond.error(res, 'Your registration was rejected. Contact your supervisor.', 403);
+      } else {
+        respond.error(res, 'Your account is not active', 403);
+      }
+      return;
+    }
+
     const orgTimezone = user.organization.timezone;
     const todayStr = getTodayInTimezone(orgTimezone);
     const todayDate = new Date(todayStr + 'T00:00:00.000Z');

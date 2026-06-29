@@ -540,6 +540,7 @@ export async function getPersonalDashboard(
         id: user.id,
         fullName: user.fullName,
         role: user.role,
+        status: user.status,
         department: user.department ? { id: user.department.id, name: user.department.name } : null,
       },
       today: today ?? null,

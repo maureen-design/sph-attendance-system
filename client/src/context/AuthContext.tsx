@@ -12,6 +12,7 @@ interface User {
   role: string;
   organizationId: string;
   departmentId: string | null;
+  status?: string;
 }
 
 interface AuthContextValue {
@@ -65,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: payload.role,
           organizationId: payload.organizationId,
           departmentId: payload.departmentId ?? null,
+          status: payload.status ?? undefined,
         });
       } catch {
         clearTokens();

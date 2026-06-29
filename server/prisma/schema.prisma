@@ -48,6 +48,13 @@ enum LeaveType {
   OTHER
 }
 
+enum UserStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  REJECTED
+  INACTIVE
+}
+
 enum LeaveStatus {
   PENDING
   APPROVED
@@ -80,7 +87,7 @@ model Organization {
 }
 
 model User {
-  id             String   @id @default(cuid())
+  id             String     @id @default(cuid())
   fullName       String
   email          String
   phone          String?
@@ -91,13 +98,17 @@ model User {
   passwordHash   String
   resetToken     String?
   resetTokenExpiry DateTime?
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  status         UserStatus @default(PENDING_APPROVAL)
+  approvedBy     String?
+  approvedAt     DateTime?
+  rejectionReason String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
-  organization   Organization  @relation(fields: [organizationId], references: [id])
-  department     Department?   @relation(fields: [departmentId], references: [id])
-  cohort         Cohort?       @relation(fields: [cohortId], references: [id])
+  organization    Organization  @relation(fields: [organizationId], references: [id])
+  department      Department?   @relation(fields: [departmentId], references: [id])
+  cohort          Cohort?       @relation(fields: [cohortId], references: [id])
+  approver        User?         @relation("UserApprover", fields: [approvedBy], references: [id])
 
   attendanceLogs   AttendanceLog[]
   workLogs         WorkLog[]
@@ -105,6 +116,7 @@ model User {
   notifications    Notification[]
   refreshTokens    RefreshToken[]
   supervisedDept   Department[]    @relation("DeptSupervisor")
+  approvedUsers    User[]          @relation("UserApprover")
   disputes         Dispute[]       @relation("DisputeUser")
   resolvedDisputes Dispute[]       @relation("DisputeResolver")
   auditLogs        AuditLog[]      @relation("AuditActor")

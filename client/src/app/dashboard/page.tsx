@@ -38,7 +38,12 @@ interface BackendAttendanceLog {
 }
 
 interface DashboardData {
-  user: { fullName: string; role: string; department: { id: string; name: string } | null };
+  user: {
+    fullName: string;
+    role: string;
+    status: string;
+    department: { id: string; name: string } | null;
+  };
   today: BackendAttendanceLog | null;
   streak: number;
   attendanceScore: number;
@@ -656,7 +661,82 @@ export default function DashboardPage() {
     );
   }
 
-  // ── STAFF / MEMBER / ATTACHEE DASHBOARD (3-state redesign) ──
+  // ── STAFF / MEMBER / ATTACHEE DASHBOARD ──
+
+  // STATE P: Pending approval or rejected
+  const userStatus = data?.user?.status;
+  if (userStatus === 'PENDING_APPROVAL') {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">
+            Habari, {firstName}
+          </h1>
+          {subtitle && <p className="text-sm text-secondary">{subtitle}</p>}
+        </div>
+
+        <div className="flex flex-col items-center gap-4 rounded-2xl surface p-8 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sph-amber/10">
+            <Clock className="h-8 w-8 text-sph-amber" />
+          </div>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+            Account Pending Approval
+          </h2>
+          <p className="max-w-sm text-sm text-secondary">
+            Your registration is awaiting review by a supervisor. You will be notified once your
+            account is activated.
+          </p>
+        </div>
+
+        {/* Announcements */}
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Announcements</h2>
+            <Link href="/dashboard/announcements" className="text-xs text-sph-blue hover:underline">
+              View all →
+            </Link>
+          </div>
+          <AnnouncementCard announcements={announcements?.announcements.slice(0, 2) ?? []} />
+        </div>
+      </div>
+    );
+  }
+
+  if (userStatus === 'REJECTED') {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">
+            Habari, {firstName}
+          </h1>
+          {subtitle && <p className="text-sm text-secondary">{subtitle}</p>}
+        </div>
+
+        <div className="flex flex-col items-center gap-4 rounded-2xl surface p-8 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sph-red/10">
+            <AlertTriangle className="h-8 w-8 text-sph-red" />
+          </div>
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">
+            Registration Rejected
+          </h2>
+          <p className="max-w-sm text-sm text-secondary">
+            Your registration was not approved. Please contact your supervisor for more information.
+          </p>
+        </div>
+
+        {/* Announcements */}
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Announcements</h2>
+            <Link href="/dashboard/announcements" className="text-xs text-sph-blue hover:underline">
+              View all →
+            </Link>
+          </div>
+          <AnnouncementCard announcements={announcements?.announcements.slice(0, 2) ?? []} />
+        </div>
+      </div>
+    );
+  }
 
   // STATE C: After check-out
   if (phase === 'checked-out') {

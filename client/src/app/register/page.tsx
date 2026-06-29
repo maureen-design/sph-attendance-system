@@ -1,12 +1,18 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Clock, AlertTriangle, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { post, ApiError } from '@/lib/api';
+
+interface InviteInfo {
+  valid: boolean;
+  department: { id: string; name: string } | null;
+  cohort: { id: string; name: string } | null;
+}
 
 function RegisterForm() {
   const searchParams = useSearchParams();
@@ -22,6 +28,31 @@ function RegisterForm() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  // Token verification state
+  const [verifying, setVerifying] = useState(true);
+  const [inviteInfo, setInviteInfo] = useState<InviteInfo | null>(null);
+  const [verifyError, setVerifyError] = useState('');
+
+  useEffect(() => {
+    if (!token) {
+      setVerifying(false);
+      return;
+    }
+
+    const verify = async () => {
+      try {
+        const data = await post<InviteInfo>('/auth/verify-invite', { token });
+        setInviteInfo(data);
+      } catch (err) {
+        setVerifyError(err instanceof ApiError ? err.message : 'Invalid invite link');
+      } finally {
+        setVerifying(false);
+      }
+    };
+
+    void verify();
+  }, [token]);
 
   const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
@@ -57,19 +88,29 @@ function RegisterForm() {
     }
   };
 
-  // ── Success state ──
-  if (isSuccess) {
+  // ── Verifying token ──
+  if (verifying) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-sph-dark px-6">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--surface)] px-6">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--accent)]" />
+          <p className="text-sm text-[var(--text-secondary)]">Verifying invite link...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Invalid token ──
+  if (verifyError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--surface)] px-6">
         <div className="flex w-full max-w-md flex-col items-center text-center">
-          <CheckCircle className="mb-4 h-16 w-16 text-sph-green" />
-          <h2 className="text-2xl font-bold text-[var(--text-primary)]">
-            Account created successfully!
-          </h2>
-          <p className="mt-2 text-sm text-secondary">Please log in to continue.</p>
+          <AlertTriangle className="mb-4 h-16 w-16 text-sph-amber" />
+          <h2 className="text-2xl font-bold text-[var(--text-primary)]">Invalid Invite Link</h2>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">{verifyError}</p>
           <Link
             href="/login"
-            className="mt-8 w-full rounded-xl bg-sph-green py-3 text-center font-semibold text-white transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-sph-green/25"
+            className="mt-8 w-full rounded-xl bg-[var(--accent)] py-3 text-center font-semibold text-white transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg"
           >
             Go to Login
           </Link>
@@ -78,40 +119,80 @@ function RegisterForm() {
     );
   }
 
+  // ── Success state (pending approval) ──
+  if (isSuccess) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--surface)] px-6">
+        <div className="flex w-full max-w-md flex-col items-center text-center">
+          <Clock className="mb-4 h-16 w-16 text-sph-amber" />
+          <h2 className="text-2xl font-bold text-[var(--text-primary)]">Registration Submitted</h2>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            Your account is pending approval from a supervisor. You will be notified once approved.
+          </p>
+          <Link
+            href="/login"
+            className="mt-8 w-full rounded-xl bg-[var(--accent)] py-3 text-center font-semibold text-white transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg"
+          >
+            Go to Login
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // ── No token ──
+  if (!token) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--surface)] px-6">
+        <div className="flex w-full max-w-md flex-col items-center text-center">
+          <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full border border-[var(--accent)]/30 bg-[var(--accent)]/10">
+            <span className="text-lg font-bold text-[var(--accent)]">SPH</span>
+          </div>
+          <h2 className="text-2xl font-bold text-[var(--text-primary)]">Invite Only</h2>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            Registration is by invite only. Please use the invite link sent to you.
+          </p>
+          <Link
+            href="/login"
+            className="mt-8 w-full rounded-xl border border-[var(--accent)] py-3 text-center font-semibold text-[var(--accent)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg"
+          >
+            Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Registration form ──
   return (
-    <div className="flex min-h-screen items-center justify-center bg-sph-dark px-6 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--surface)] px-6 py-12">
       <div className="w-full max-w-md">
         {/* Logo badge */}
         <div className="mb-6 flex flex-col items-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full border border-sph-green/30 bg-sph-green/10">
-            <span className="text-lg font-bold text-sph-green">SPH</span>
+          <div className="flex h-14 w-14 items-center justify-center rounded-full border border-[var(--accent)]/30 bg-[var(--accent)]/10">
+            <span className="text-lg font-bold text-[var(--accent)]">SPH</span>
           </div>
           <h1 className="mt-4 text-2xl font-bold text-[var(--text-primary)]">
             Create your account
           </h1>
-          <p className="mt-1 text-sm text-secondary">
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">
             You&apos;ve been invited to join SPH Attendance
           </p>
         </div>
 
-        {/* Token status banner */}
-        {token ? (
-          <div className="mb-6 rounded-xl border border-sph-green/30 bg-sph-green/10 px-4 py-3 text-sm text-sph-green">
-            Invite link verified
-          </div>
-        ) : (
-          <div className="mb-6 rounded-xl border border-sph-red/30 bg-sph-red/10 px-4 py-3 text-sm text-sph-red">
-            No invite token found. Please use your invite link.
+        {/* Invite info */}
+        {inviteInfo?.department && (
+          <div className="mb-6 rounded-xl border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-4 py-3 text-sm">
+            <span className="text-[var(--accent)]">Department: </span>
+            <span className="font-medium text-[var(--text-primary)]">
+              {inviteInfo.department.name}
+            </span>
           </div>
         )}
 
         {/* Form */}
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-5"
-          {...(!token && { 'aria-disabled': true })}
-        >
-          <fieldset className="flex flex-col gap-5" disabled={!token || isLoading}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <fieldset className="flex flex-col gap-5" disabled={isLoading}>
             {/* Full Name */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="fullName">Full Name</Label>
@@ -121,7 +202,7 @@ function RegisterForm() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="John Doe"
-                className="h-11 rounded-xl border-[var(--border)] surface-elevated px-4 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+                className="h-11 rounded-xl border-[var(--border)] bg-[var(--surface-elevated)] px-4 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
               />
             </div>
 
@@ -135,7 +216,7 @@ function RegisterForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="h-11 rounded-xl border-[var(--border)] surface-elevated px-4 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+                className="h-11 rounded-xl border-[var(--border)] bg-[var(--surface-elevated)] px-4 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
               />
             </div>
 
@@ -148,9 +229,9 @@ function RegisterForm() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+254 700 000 000"
-                className="h-11 rounded-xl border-[var(--border)] surface-elevated px-4 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+                className="h-11 rounded-xl border-[var(--border)] bg-[var(--surface-elevated)] px-4 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
               />
-              <span className="text-xs text-muted">
+              <span className="text-xs text-[var(--text-muted)]">
                 Optional but recommended for account recovery
               </span>
             </div>
@@ -166,7 +247,7 @@ function RegisterForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="h-11 rounded-xl border-[var(--border)] surface-elevated px-4 pr-12 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+                  className="h-11 rounded-xl border-[var(--border)] bg-[var(--surface-elevated)] px-4 pr-12 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
                 />
                 <button
                   type="button"
@@ -224,7 +305,7 @@ function RegisterForm() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   aria-invalid={passwordsMismatch}
-                  className="h-11 rounded-xl border-[var(--border)] surface-elevated px-4 pr-12 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+                  className="h-11 rounded-xl border-[var(--border)] bg-[var(--surface-elevated)] px-4 pr-12 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
                 />
                 <button
                   type="button"
@@ -277,13 +358,13 @@ function RegisterForm() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={!token || isLoading || passwordsMismatch}
-            className="flex items-center justify-center rounded-xl bg-sph-green py-3 font-semibold text-white transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-sph-green/25 disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-none"
+            disabled={isLoading || passwordsMismatch}
+            className="flex items-center justify-center rounded-xl bg-[var(--accent)] py-3 font-semibold text-white transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-none"
           >
             {isLoading ? (
               <>
                 <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Creating account...
+                Submitting...
               </>
             ) : (
               'Create Account'
@@ -299,9 +380,9 @@ function RegisterForm() {
         </form>
 
         {/* Bottom link */}
-        <p className="mt-6 text-center text-sm text-secondary">
+        <p className="mt-6 text-center text-sm text-[var(--text-secondary)]">
           Already have an account?{' '}
-          <Link href="/login" className="text-sph-blue hover:underline">
+          <Link href="/login" className="text-[var(--accent)] hover:underline">
             Sign in
           </Link>
         </p>
@@ -312,8 +393,8 @@ function RegisterForm() {
 
 function LoadingFallback() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-sph-dark">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-sph-green border-t-transparent" />
+    <div className="flex min-h-screen items-center justify-center bg-[var(--surface)]">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
     </div>
   );
 }

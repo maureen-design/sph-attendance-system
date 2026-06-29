@@ -15,13 +15,28 @@ import {
   MessageSquare,
   UserCheck,
   UserX,
+  UserPlus,
+  ThumbsUp,
+  ThumbsDown,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { get } from '@/lib/api';
+import { get, post } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type AttendanceStatus =
   | 'ON_TIME'
@@ -99,6 +114,21 @@ interface DisputesData {
   disputes: Dispute[];
 }
 
+interface PendingUser {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  role: string;
+  createdAt: string;
+  department: { id: string; name: string } | null;
+  cohort: { id: string; name: string } | null;
+}
+
+interface PendingApprovalsData {
+  users: PendingUser[];
+}
+
 const STATUS_COLORS: Record<string, string> = {
   ON_TIME: 'bg-sph-green/10 text-sph-green border-sph-green/20',
   EARLY: 'bg-sph-green/10 text-sph-green border-sph-green/20',
@@ -138,6 +168,15 @@ export default function SupervisorDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Pending approvals
+  const [pendingApprovals, setPendingApprovals] = useState<PendingApprovalsData | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  // Reject modal
+  const [rejectTarget, setRejectTarget] = useState<PendingUser | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+
   // Filters
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterSearch, setFilterSearch] = useState('');
@@ -163,14 +202,16 @@ export default function SupervisorDashboardPage() {
         if (filterStatus) params.set('status', filterStatus);
         if (filterSearch) params.set('search', filterSearch);
 
-        const [roster, live, disputes] = await Promise.all([
+        const [roster, live, disputes, pending] = await Promise.all([
           get<SupervisorData>(`/dashboard/supervisor?${params}`),
           get<LiveData>('/dashboard/supervisor/live'),
           get<DisputesData>('/disputes?status=OPEN'),
+          get<PendingApprovalsData>('/approvals/pending').catch(() => null),
         ]);
         setSupervisorData(roster);
         setLiveData(live);
         setDisputesData(disputes);
+        if (pending) setPendingApprovals(pending);
       } catch {
         setError('Failed to load dashboard data.');
       } finally {
@@ -190,6 +231,37 @@ export default function SupervisorDashboardPage() {
     setFilterSearch('');
     setCurrentPage(1);
   }, []);
+
+  const handleApprove = useCallback(async (targetId: string) => {
+    setApprovingId(targetId);
+    try {
+      await post(`/approvals/${targetId}/approve`);
+      setPendingApprovals((prev) =>
+        prev ? { users: prev.users.filter((u) => u.id !== targetId) } : prev,
+      );
+    } catch {
+      // Error handled silently
+    } finally {
+      setApprovingId(null);
+    }
+  }, []);
+
+  const handleReject = useCallback(async () => {
+    if (!rejectTarget) return;
+    setRejecting(true);
+    try {
+      await post(`/approvals/${rejectTarget.id}/reject`, { reason: rejectReason || undefined });
+      setPendingApprovals((prev) =>
+        prev ? { users: prev.users.filter((u) => u.id !== rejectTarget.id) } : prev,
+      );
+      setRejectTarget(null);
+      setRejectReason('');
+    } catch {
+      // Error handled silently
+    } finally {
+      setRejecting(false);
+    }
+  }, [rejectTarget, rejectReason]);
 
   const dept = liveData?.departments[0];
   const totalExpected = supervisorData?.totalExpected ?? dept?.totalUsers ?? 0;
@@ -428,8 +500,68 @@ export default function SupervisorDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Sidebar: Pending Reviews */}
+        {/* Sidebar: Pending Approvals & Reviews */}
         <div className="space-y-4">
+          {/* Pending Approvals */}
+          {pendingApprovals && pendingApprovals.users.length > 0 && (
+            <Card className="border-sph-amber/30">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 text-sph-amber" />
+                  Pending Approvals
+                  <span className="ml-auto rounded-full bg-sph-amber/20 px-2 py-0.5 text-[10px] font-bold text-sph-amber">
+                    {pendingApprovals.users.length}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {pendingApprovals.users.map((pu) => (
+                  <div
+                    key={pu.id}
+                    className="rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)]/50 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-[var(--text-primary)]">
+                          {pu.fullName}
+                        </p>
+                        <p className="truncate text-xs text-muted">{pu.email}</p>
+                        {pu.department && (
+                          <p className="mt-0.5 text-[10px] text-sph-amber">{pu.department.name}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-2 flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="flex-1 h-8 text-xs"
+                        disabled={approvingId === pu.id}
+                        onClick={() => handleApprove(pu.id)}
+                      >
+                        {approvingId === pu.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <ThumbsUp className="h-3 w-3" />
+                        )}
+                        <span className="ml-1">Approve</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 h-8 text-xs border-sph-red/30 text-sph-red hover:bg-sph-red/10"
+                        onClick={() => setRejectTarget(pu)}
+                      >
+                        <ThumbsDown className="h-3 w-3" />
+                        <span className="ml-1">Reject</span>
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Disputes */}
           <Card>
             <CardHeader>
@@ -514,6 +646,55 @@ export default function SupervisorDashboardPage() {
           </Card>
         </div>
       </div>
+
+      {/* Reject Modal */}
+      <Dialog
+        open={!!rejectTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRejectTarget(null);
+            setRejectReason('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Registration</DialogTitle>
+            <DialogDescription>
+              {rejectTarget && (
+                <>
+                  Reject <strong>{rejectTarget.fullName}</strong>&apos;s registration request.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3 py-2">
+            <Label htmlFor="rejectReason">Reason (optional)</Label>
+            <Input
+              id="rejectReason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="e.g. Incomplete documentation"
+              className="h-11 rounded-xl border-[var(--border)] bg-[var(--surface-elevated)] px-4 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+            />
+          </div>
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button variant="destructive" disabled={rejecting} onClick={handleReject}>
+              {rejecting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ThumbsDown className="h-4 w-4" />
+              )}
+              <span className="ml-1">Reject</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

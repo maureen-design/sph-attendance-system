@@ -105,6 +105,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
         organizationId,
         cohortId: invite.cohortId,
         departmentId: invite.departmentId ?? null,
+        status: 'PENDING_APPROVAL',
       },
     });
 
@@ -150,14 +151,33 @@ export async function register(req: Request, res: Response, next: NextFunction):
       },
     });
 
-    // 7) Send welcome email (failure won't affect response)
+    // 7) Notify department supervisor if department has one
+    if (invite.department?.supervisorId) {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: invite.department.supervisorId,
+            title: 'New Registration Pending Approval',
+            body: `${user.fullName} has registered for ${invite.department.name} and is awaiting your approval.`,
+            type: 'APPROVAL_PENDING',
+          },
+        });
+      } catch (notifErr) {
+        console.error(
+          '[register] Failed to create supervisor notification:',
+          (notifErr as Error).message,
+        );
+      }
+    }
+
+    // 8) Send welcome email (failure won't affect response)
     try {
       await sendWelcomeEmail(user.email, user.fullName, `${config.CLIENT_URL}/login`);
     } catch (emailErr) {
       console.error('[register] Failed to send welcome email:', (emailErr as Error).message);
     }
 
-    // 8) Response
+    // 9) Response
     respond.success(
       res,
       {
@@ -167,7 +187,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
           email: user.email,
           role: user.role,
         },
-        message: 'Registration successful. Please log in.',
+        message: 'Registration submitted. Your account is pending approval by a supervisor.',
       },
       201,
     );
@@ -581,6 +601,55 @@ export async function resetPassword(
     });
 
     respond.success(res, { message: 'Password reset successful. Please log in.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// --- POST /api/auth/verify-invite -------------------------------------------
+
+export async function verifyInvite(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { token } = req.body as { token?: string };
+
+    if (!token) {
+      respond.error(res, 'Invite token is required', 400);
+      return;
+    }
+
+    const invite = await prisma.inviteLink.findUnique({
+      where: { token },
+      include: {
+        department: { select: { id: true, name: true } },
+        cohort: { select: { id: true, name: true } },
+      },
+    });
+
+    if (!invite) {
+      respond.error(res, 'Invalid invite link', 400);
+      return;
+    }
+
+    if (!invite.isActive || invite.revokedAt) {
+      respond.error(res, 'This invite link has been revoked', 400);
+      return;
+    }
+
+    if (invite.expiresAt < new Date()) {
+      respond.error(res, 'This invite link has expired', 400);
+      return;
+    }
+
+    if (invite.usedCount >= invite.maxUses) {
+      respond.error(res, 'This invite link has reached its usage limit', 400);
+      return;
+    }
+
+    respond.success(res, {
+      valid: true,
+      department: invite.department,
+      cohort: invite.cohort,
+    });
   } catch (err) {
     next(err);
   }
