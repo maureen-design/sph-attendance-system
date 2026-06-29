@@ -42,8 +42,8 @@ export default function Home() {
         <div
           className={`absolute inset-0 ${
             isLightMode
-              ? 'bg-gradient-to-b from-[#F5F0E8]/75 via-[#FAF7F2]/65 to-[#F5F0E8]/75'
-              : 'bg-gradient-to-b from-[#0F172A]/75 via-[#0F172A]/65 to-[#0F172A]/75'
+              ? 'bg-gradient-to-b from-[#F5F0E8]/92 via-[#FAF7F2]/85 to-[#F5F0E8]/92'
+              : 'bg-gradient-to-b from-[#0F172A]/92 via-[#0F172A]/85 to-[#0F172A]/92'
           }`}
         />
       </div>
