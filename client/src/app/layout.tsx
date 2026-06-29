@@ -10,12 +10,17 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'SPH Attendance',
-  description: 'Presence, tracked with dignity.',
+  title: 'SPH Attendance — Swahilipot Hub',
+  description: 'One tap check-in. For everyone at SPH.',
   manifest: '/manifest.json',
   icons: {
     icon: '/logo/swahilipot.png',
     apple: '/logo/swahilipot.png',
+  },
+  openGraph: {
+    title: 'SPH Attendance — Swahilipot Hub',
+    description: 'One tap check-in. For everyone at SPH.',
+    images: [{ url: '/images/logo/swahilipot.png' }],
   },
 };
 
@@ -23,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={plusJakartaSans.variable} suppressHydrationWarning>
       <head>
+        <meta name="theme-color" content="#0F172A" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -30,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 const savedTheme = localStorage.getItem('sph-theme');
                 if (savedTheme === 'light') {
                   document.documentElement.classList.add('light');
+                  document.querySelector('meta[name="theme-color"]').setAttribute('content', '#F5F0E8');
                 } else {
                   document.documentElement.classList.add('dark');
                 }
