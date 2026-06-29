@@ -44,6 +44,11 @@ body {
   font-family: var(--font-sans), sans-serif;
 }
 
+@keyframes pulse-idle {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
 ::-webkit-scrollbar {
   width: 6px;
 }

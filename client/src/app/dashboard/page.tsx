@@ -180,6 +180,7 @@ export default function DashboardPage() {
 
   // Check-in state
   const [phase, setPhase] = useState<CheckInPhase>('idle');
+  const [weekExpanded, setWeekExpanded] = useState(false);
   const [checkInStatus, setCheckInStatus] = useState<string | null>(null);
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
   const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
@@ -896,14 +897,25 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Collapsed Week Strip */}
-      <div className="flex items-center justify-between rounded-2xl surface px-5 py-4">
-        <span className="text-sm text-secondary">
-          This week: {weekDays.filter((d) => d.status).length}/5 days
-        </span>
-        <Link href="/dashboard/history" className="text-xs text-sph-blue hover:underline">
-          Tap to see →
-        </Link>
+      {/* Collapsible Week Strip */}
+      <div className="rounded-2xl surface p-5">
+        <button
+          type="button"
+          onClick={() => setWeekExpanded(!weekExpanded)}
+          className="flex w-full items-center justify-between"
+        >
+          <span className="text-sm text-secondary">
+            This week: {weekDays.filter((d) => d.status).length}/5 days
+          </span>
+          <span className="text-xs text-sph-blue">
+            {weekExpanded ? 'Tap to hide' : 'Tap to see'} →
+          </span>
+        </button>
+        {weekExpanded && (
+          <div className="mt-4">
+            <WeekStrip days={weekDays} />
+          </div>
+        )}
       </div>
 
       {/* Announcements - single line preview */}

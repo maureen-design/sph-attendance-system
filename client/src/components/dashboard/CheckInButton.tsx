@@ -81,14 +81,19 @@ function CircularButton({
       type="button"
       onClick={onClick}
       disabled={isLoading}
-      className={`flex h-[120px] w-[120px] flex-col items-center justify-center rounded-full border-[3px] bg-transparent font-semibold tracking-wider transition-all duration-150 active:scale-[0.98] disabled:opacity-50 md:h-[140px] md:w-[140px] ${borderColor} ${
-        isLoading ? 'cursor-wait' : 'cursor-pointer hover:bg-sph-green/10'
-      }`}
+      className={
+        'flex h-[100px] w-[100px] flex-col items-center justify-center rounded-full border-[3px] bg-transparent font-semibold tracking-wider transition-all duration-150 active:scale-[0.98] disabled:opacity-50 sm:h-[120px] sm:w-[120px] lg:h-[140px] lg:w-[140px] ' +
+        borderColor +
+        ' ' +
+        (isLoading ? 'cursor-wait' : 'cursor-pointer hover:bg-sph-green/10 hover:animate-none') +
+        ' ' +
+        (!isLoading ? 'animate-[pulse-idle_2s_ease-in-out_infinite] hover:animate-none' : '')
+      }
     >
       {isLoading ? (
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-sph-green border-t-transparent" />
       ) : (
-        <span className="text-sm text-sph-green md:text-base">{label}</span>
+        <span className="text-sm text-sph-green sm:text-base lg:text-lg">{label}</span>
       )}
     </button>
   );
