@@ -575,8 +575,6 @@ export default function DashboardPage() {
               onCheckedOut={handleCheckedOut}
               role={role}
               departmentName={subtitle}
-              departmentShiftEnd={undefined}
-              checkInTimeIso={checkInTime}
             />
           )}
         </div>
@@ -792,8 +790,6 @@ export default function DashboardPage() {
               onCheckedOut={handleCheckedOut}
               role={role}
               departmentName={subtitle}
-              departmentShiftEnd={undefined}
-              checkInTimeIso={checkInTime}
             />
           )}
         </div>
@@ -896,8 +892,6 @@ export default function DashboardPage() {
             onCheckedOut={handleCheckedOut}
             role={role}
             departmentName={subtitle}
-            departmentShiftEnd={undefined}
-            checkInTimeIso={checkInTime}
           />
         )}
       </div>

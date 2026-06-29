@@ -3,7 +3,6 @@ import { toZonedTime } from 'date-fns-tz';
 import { Role, type LeaveType, type AttendanceStatus } from '@prisma/client';
 import type { Request, Response, NextFunction } from 'express';
 import prisma from '../db/prisma.js';
-import { verifyQRToken } from '../utils/qr.js';
 import { calculateAttendanceStatus, calculateCheckOutStatus } from '../utils/attendance.js';
 import * as respond from '../utils/response.js';
 
@@ -17,33 +16,14 @@ function getTodayInTimezone(timezone: string): string {
   return format(zoned, 'yyyy-MM-dd');
 }
 
-// --- POST /api/attendance/checkin -------------------------------------------
+// --- POST /api/attendance/check-in ------------------------------------------
 
 export async function checkIn(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { qrToken } = req.body as { qrToken?: string };
-    if (!qrToken || typeof qrToken !== 'string') {
-      respond.error(res, 'qrToken is required', 400);
-      return;
-    }
-
-    // 1) Verify QR token
-    const qr = verifyQRToken(qrToken);
-    if (!qr) {
-      respond.error(res, 'Invalid or expired QR token', 400);
-      return;
-    }
-
-    // 2) Check org match
     const userId = req.user!.id;
     const organizationId = req.user!.organizationId;
 
-    if (qr.orgId !== organizationId) {
-      respond.error(res, 'QR token does not belong to your organization', 403);
-      return;
-    }
-
-    // 3) Get user with department
+    // 1) Get user with department
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { department: true, organization: true },
@@ -58,7 +38,7 @@ export async function checkIn(req: Request, res: Response, next: NextFunction): 
     const todayStr = getTodayInTimezone(orgTimezone);
     const todayDate = new Date(todayStr + 'T00:00:00.000Z');
 
-    // 4) Check for existing check-in today
+    // 2) Check for existing check-in today
     const existing = await prisma.attendanceLog.findUnique({
       where: { userId_date: { userId, date: todayDate } },
     });
@@ -74,7 +54,7 @@ export async function checkIn(req: Request, res: Response, next: NextFunction): 
       }
     }
 
-    // 5) Get schedule for user's role in their department
+    // 3) Get schedule for user's role in their department
     const schedule = await prisma.schedule.findUnique({
       where: {
         departmentId_userType: {
@@ -87,7 +67,7 @@ export async function checkIn(req: Request, res: Response, next: NextFunction): 
     const cutoffTime = schedule?.cutoffTime ?? '10:00';
     const gracePeriodMins = schedule?.gracePeriodMins ?? 15;
 
-    // 6) Calculate status
+    // 4) Calculate status
     const now = new Date();
     const status = calculateAttendanceStatus(
       now,
@@ -97,13 +77,12 @@ export async function checkIn(req: Request, res: Response, next: NextFunction): 
       orgTimezone,
     );
 
-    // UNRESOLVED should never happen here since we have a valid check-in time
     if (status === 'UNRESOLVED') {
       respond.error(res, 'Check-in failed: could not determine attendance status', 500);
       return;
     }
 
-    // 7) Create attendance log
+    // 5) Create attendance log
     const log = await prisma.attendanceLog.create({
       data: {
         userId,
@@ -111,7 +90,7 @@ export async function checkIn(req: Request, res: Response, next: NextFunction): 
         departmentId: user.departmentId!,
         date: todayDate,
         checkInTime: now,
-        checkInMethod: 'QR',
+        checkInMethod: 'SIMPLE',
         status,
       },
     });
@@ -121,7 +100,7 @@ export async function checkIn(req: Request, res: Response, next: NextFunction): 
       return;
     }
 
-    // 8) Audit log
+    // 6) Audit log
     await prisma.auditLog.create({
       data: {
         organizationId,
@@ -151,33 +130,14 @@ export async function checkIn(req: Request, res: Response, next: NextFunction): 
   }
 }
 
-// --- POST /api/attendance/checkout ------------------------------------------
+// --- POST /api/attendance/check-out -----------------------------------------
 
 export async function checkOut(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { qrToken } = req.body as { qrToken?: string };
-    if (!qrToken || typeof qrToken !== 'string') {
-      respond.error(res, 'qrToken is required', 400);
-      return;
-    }
-
-    // 1) Verify QR token
-    const qr = verifyQRToken(qrToken);
-    if (!qr) {
-      respond.error(res, 'Invalid or expired QR token', 400);
-      return;
-    }
-
     const userId = req.user!.id;
     const organizationId = req.user!.organizationId;
 
-    // 2) Check org match
-    if (qr.orgId !== organizationId) {
-      respond.error(res, 'QR token does not belong to your organization', 403);
-      return;
-    }
-
-    // 3) Get user with department
+    // 1) Get user with department
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { department: true, organization: true },
@@ -192,7 +152,7 @@ export async function checkOut(req: Request, res: Response, next: NextFunction):
     const todayStr = getTodayInTimezone(orgTimezone);
     const todayDate = new Date(todayStr + 'T00:00:00.000Z');
 
-    // 4) Find today's log
+    // 2) Find today's log
     const log = await prisma.attendanceLog.findUnique({
       where: { userId_date: { userId, date: todayDate } },
     });
@@ -202,29 +162,28 @@ export async function checkOut(req: Request, res: Response, next: NextFunction):
       return;
     }
 
-    // 5) Already checked out?
+    // 3) Already checked out?
     if (log.checkOutTime) {
       respond.error(res, 'Already checked out', 409);
       return;
     }
 
-    // 6) Calculate checkout status
+    // 4) Calculate checkout status
     const now = new Date();
     const checkoutStatus = calculateCheckOutStatus(now, user.department.shiftEnd, orgTimezone);
-
-    // 7) Update log
     const newStatus = checkoutStatus === 'LEFT_EARLY' ? 'LEFT_EARLY' : log.status;
 
+    // 5) Update log
     const updated = await prisma.attendanceLog.update({
       where: { id: log.id },
       data: {
         checkOutTime: now,
-        checkOutMethod: 'SCANNED',
+        checkOutMethod: 'SIMPLE',
         status: newStatus,
       },
     });
 
-    // 8) Audit log
+    // 6) Audit log
     await prisma.auditLog.create({
       data: {
         organizationId,

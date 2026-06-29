@@ -14,8 +14,8 @@ const router = Router();
 
 router.use(authenticateToken);
 
-router.post('/checkin', checkIn);
-router.post('/checkout', checkOut);
+router.post('/check-in', checkIn);
+router.post('/check-out', checkOut);
 router.post('/checkout/self-report', selfReportCheckOut);
 router.get('/today', getToday);
 router.post('/excuse', submitExcuse);

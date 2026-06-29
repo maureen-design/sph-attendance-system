@@ -31,12 +31,14 @@ enum CheckOutMethod {
   SCANNED
   USER_REPORTED
   AUTO_CLOSED
+  SIMPLE
 }
 
 enum CheckInMethod {
   QR
   MANUAL
   OFFLINE_QUEUE
+  SIMPLE
 }
 
 enum LeaveType {
