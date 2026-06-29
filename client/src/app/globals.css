@@ -44,9 +44,17 @@ body {
   font-family: var(--font-sans), sans-serif;
 }
 
-@keyframes pulse-idle {
-  0%, 100% { opacity: 0.8; }
-  50% { opacity: 1; }
+@keyframes pulse-glow-green {
+  0%, 100% { box-shadow: 0 0 8px 4px rgba(16, 185, 129, 0.3); }
+  50% { box-shadow: 0 0 24px 12px rgba(16, 185, 129, 0.15); }
+}
+@keyframes pulse-glow-amber {
+  0%, 100% { box-shadow: 0 0 8px 4px rgba(245, 158, 11, 0.3); }
+  50% { box-shadow: 0 0 24px 12px rgba(245, 158, 11, 0.15); }
+}
+@keyframes pulse-glow-red {
+  0%, 100% { box-shadow: 0 0 8px 4px rgba(239, 68, 68, 0.3); }
+  50% { box-shadow: 0 0 24px 12px rgba(239, 68, 68, 0.15); }
 }
 
 ::-webkit-scrollbar {

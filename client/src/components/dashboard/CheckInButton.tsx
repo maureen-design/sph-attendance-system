@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { Shield } from 'lucide-react';
 import { post, ApiError } from '@/lib/api';
 
-// ── Types ──
-
 export type CheckInPhase = 'idle' | 'checked-in' | 'checked-out';
 
 interface CheckInButtonProps {
@@ -37,8 +35,6 @@ interface CheckOutResponse {
   };
 }
 
-// ── Helpers ──
-
 function formatTime(isoStr: string | null): string {
   if (!isoStr) return '--:--';
   return new Date(isoStr).toLocaleTimeString('en-US', {
@@ -55,51 +51,59 @@ function statusBadgeClass(status: string | null): string {
   return 'bg-sph-green/20 text-sph-green';
 }
 
-function ringBorderColor(status: string | null): string {
-  if (!status) return 'border-sph-green';
-  if (status === 'ON_TIME' || status === 'EARLY') return 'border-sph-green';
-  if (status === 'LATE' || status === 'LEFT_EARLY') return 'border-sph-amber';
-  if (status === 'UNRESOLVED') return 'border-sph-red';
-  return 'border-sph-green';
+function buttonColor(status: string | null): 'green' | 'amber' | 'red' {
+  if (!status) return 'green';
+  if (status === 'ON_TIME' || status === 'EARLY') return 'green';
+  if (status === 'LATE' || status === 'LEFT_EARLY') return 'amber';
+  if (status === 'UNRESOLVED') return 'red';
+  return 'green';
 }
-
-// ── One-tap circular button ──
 
 function CircularButton({
-  label,
-  borderColor,
+  color,
   onClick,
   isLoading,
+  label,
 }: {
-  label: string;
-  borderColor: string;
+  color: 'green' | 'amber' | 'red';
   onClick: () => void;
   isLoading: boolean;
+  label: string;
 }) {
+  const bgColor =
+    color === 'green' ? 'bg-sph-green' : color === 'amber' ? 'bg-sph-amber' : 'bg-sph-red';
+
+  const glowClass =
+    color === 'green'
+      ? 'animate-[pulse-glow-green_2s_ease-in-out_infinite]'
+      : color === 'amber'
+        ? 'animate-[pulse-glow-amber_2s_ease-in-out_infinite]'
+        : 'animate-[pulse-glow-red_2s_ease-in-out_infinite]';
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={isLoading}
-      className={
-        'flex h-[100px] w-[100px] flex-col items-center justify-center rounded-full border-[3px] bg-transparent font-semibold tracking-wider transition-all duration-150 active:scale-[0.98] disabled:opacity-50 sm:h-[120px] sm:w-[120px] lg:h-[140px] lg:w-[140px] ' +
-        borderColor +
-        ' ' +
-        (isLoading ? 'cursor-wait' : 'cursor-pointer hover:bg-sph-green/10 hover:animate-none') +
-        ' ' +
-        (!isLoading ? 'animate-[pulse-idle_2s_ease-in-out_infinite] hover:animate-none' : '')
-      }
-    >
-      {isLoading ? (
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-sph-green border-t-transparent" />
-      ) : (
-        <span className="text-sm text-sph-green sm:text-base lg:text-lg">{label}</span>
-      )}
-    </button>
+    <div className="flex flex-col items-center gap-3">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={isLoading}
+        className={
+          'flex h-[100px] w-[100px] items-center justify-center rounded-full sm:h-[120px] sm:w-[120px] lg:h-[140px] lg:w-[140px] ' +
+          bgColor +
+          ' transition-all duration-150 active:scale-[0.98] disabled:opacity-50 ' +
+          (isLoading
+            ? 'cursor-wait'
+            : 'cursor-pointer hover:brightness-110 hover:shadow-2xl hover:animate-none ' +
+              glowClass)
+        }
+      >
+        {isLoading ? (
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
+        ) : null}
+      </button>
+      <span className="text-sm font-semibold text-[var(--text-primary)]">{label}</span>
+    </div>
   );
 }
-
-// ── Component ──
 
 export function CheckInButton({
   phase,
@@ -114,7 +118,6 @@ export function CheckInButton({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  // ── SUPER ADMIN: show admin card instead of check-in ──
   if (role === 'SUPER_ADMIN') {
     return (
       <div className="flex flex-col items-center gap-4 text-center">
@@ -163,41 +166,36 @@ export function CheckInButton({
     }
   };
 
-  // ── CHECKED OUT ──
   if (phase === 'checked-out') {
     return null;
   }
 
-  // ── CHECKED IN ──
   if (phase === 'checked-in') {
     return (
       <div className="flex flex-col items-center gap-4">
         {departmentName && <p className="text-sm text-secondary">{departmentName}</p>}
-        <div className={`rounded-full px-5 py-2 text-sm font-semibold ${statusBadgeClass(status)}`}>
-          {status}
-        </div>
-        <p className="text-sm text-secondary">Checked in at {formatTime(checkInTime)}</p>
         <CircularButton
-          label="CHECK OUT"
-          borderColor={ringBorderColor(status)}
+          color={buttonColor(status)}
           onClick={doCheckOut}
           isLoading={isSubmitting}
+          label="Check Out"
         />
+        <div className="flex flex-col items-center gap-2 rounded-2xl p-4 surface">
+          <div
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold ${statusBadgeClass(status)}`}
+          >
+            {status}
+          </div>
+          <p className="text-sm text-secondary">Checked in at {formatTime(checkInTime)}</p>
+        </div>
         {error && <p className="text-xs text-sph-red">{error}</p>}
       </div>
     );
   }
 
-  // ── IDLE (not checked in) ──
   return (
     <div className="flex flex-col items-center gap-4">
-      <p className="text-sm text-secondary">You haven&apos;t checked in yet</p>
-      <CircularButton
-        label="CHECK IN"
-        borderColor="border-sph-green"
-        onClick={doCheckIn}
-        isLoading={isSubmitting}
-      />
+      <CircularButton color="green" onClick={doCheckIn} isLoading={isSubmitting} label="Check In" />
       {error && <p className="text-xs text-sph-red">{error}</p>}
     </div>
   );
