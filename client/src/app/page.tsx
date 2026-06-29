@@ -36,14 +36,14 @@ export default function Home() {
           className="absolute inset-0 bg-cover bg-center"
           style={{
             backgroundImage: "url('/images/swahili.jpg')",
-            opacity: isLightMode ? 0.06 : 0.08,
+            opacity: isLightMode ? 0.12 : 0.15,
           }}
         />
         <div
           className={`absolute inset-0 ${
             isLightMode
-              ? 'bg-gradient-to-b from-[#F5F0E8]/90 via-[#FAF7F2]/85 to-[#F5F0E8]/90'
-              : 'bg-gradient-to-b from-[#0F172A]/90 via-[#0F172A]/85 to-[#0F172A]/90'
+              ? 'bg-gradient-to-b from-[#F5F0E8]/75 via-[#FAF7F2]/65 to-[#F5F0E8]/75'
+              : 'bg-gradient-to-b from-[#0F172A]/75 via-[#0F172A]/65 to-[#0F172A]/75'
           }`}
         />
       </div>
@@ -64,10 +64,9 @@ export default function Home() {
           {/* Logo */}
           <Image
             src="/images/logo/swahilipot.png"
-            alt=""
-            role="presentation"
+            alt="Swahilipot Hub"
             width={280}
-            height={48}
+            height={80}
             className={`h-auto w-[160px] sm:w-[200px] lg:w-[280px] ${!isLightMode ? 'drop-shadow-lg' : ''}`}
             priority
           />
@@ -96,7 +95,7 @@ export default function Home() {
           <div className="mt-14 flex w-full flex-col items-center gap-5 sm:w-auto sm:flex-row">
             <Link
               href="/login"
-              className="flex min-h-[56px] w-full items-center justify-center rounded-xl bg-[var(--accent)] px-10 text-center font-medium text-white transition-all duration-150 hover:brightness-110 active:scale-[0.98] sm:w-auto"
+              className="flex min-h-[56px] w-full items-center justify-center rounded-xl border border-[var(--accent)] bg-transparent px-10 text-center font-medium text-[var(--accent)] transition-all duration-150 hover:bg-[var(--accent)]/10 active:scale-[0.98] sm:w-auto"
             >
               Log In
             </Link>
