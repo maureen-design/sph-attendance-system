@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Shield } from 'lucide-react';
 import { post, ApiError } from '@/lib/api';
 
@@ -44,14 +44,7 @@ function formatTime(isoStr: string | null): string {
   });
 }
 
-function statusBadgeClass(status: string | null): string {
-  if (!status) return 'bg-surface-elevated text-secondary';
-  if (status === 'LATE' || status === 'LEFT_EARLY') return 'bg-sph-amber/20 text-sph-amber';
-  if (status === 'UNRESOLVED') return 'bg-sph-red/20 text-sph-red';
-  return 'bg-sph-green/20 text-sph-green';
-}
-
-function buttonColor(status: string | null): 'green' | 'amber' | 'red' {
+function orbColor(status: string | null): 'green' | 'amber' | 'red' {
   if (!status) return 'green';
   if (status === 'ON_TIME' || status === 'EARLY') return 'green';
   if (status === 'LATE' || status === 'LEFT_EARLY') return 'amber';
@@ -59,7 +52,35 @@ function buttonColor(status: string | null): 'green' | 'amber' | 'red' {
   return 'green';
 }
 
-function CircularButton({
+function statusBadgeClass(status: string | null): string {
+  if (!status) return 'bg-surface-elevated text-secondary';
+  if (status === 'LATE' || status === 'LEFT_EARLY') return 'bg-sph-amber/20 text-sph-amber';
+  if (status === 'UNRESOLVED') return 'bg-sph-red/20 text-sph-red';
+  return 'bg-sph-green/20 text-sph-green';
+}
+
+const GRADIENTS = {
+  green: 'radial-gradient(circle at 35% 30%, #34D399, #059669)',
+  amber: 'radial-gradient(circle at 35% 30%, #FBBF24, #D97706)',
+  red: 'radial-gradient(circle at 35% 30%, #F87171, #DC2626)',
+} as const;
+
+const GLOW_COLORS = {
+  green: 'rgba(16,185,129,0.35)',
+  amber: 'rgba(245,158,11,0.35)',
+  red: 'rgba(239,68,68,0.35)',
+} as const;
+
+const GLOW_HOVER = {
+  green: 'rgba(16,185,129,0.5)',
+  amber: 'rgba(245,158,11,0.5)',
+  red: 'rgba(239,68,68,0.5)',
+} as const;
+
+const ORB_SIZE = 'clamp(120px, 25vw, 160px)';
+const ORB_RADIUS = '48% 52% 50% 50% / 50% 50% 48% 52%';
+
+function OrbButton({
   color,
   onClick,
   isLoading,
@@ -70,38 +91,85 @@ function CircularButton({
   isLoading: boolean;
   label: string;
 }) {
-  const bgColor =
-    color === 'green' ? 'bg-sph-green' : color === 'amber' ? 'bg-sph-amber' : 'bg-sph-red';
+  const [isPressed, setIsPressed] = useState(false);
 
-  const glowClass =
-    color === 'green'
-      ? 'animate-[pulse-glow-green_2s_ease-in-out_infinite]'
-      : color === 'amber'
-        ? 'animate-[pulse-glow-amber_2s_ease-in-out_infinite]'
-        : 'animate-[pulse-glow-red_2s_ease-in-out_infinite]';
+  const handlePointerDown = useCallback(() => setIsPressed(true), []);
+  const handlePointerUp = useCallback(() => setIsPressed(false), []);
+  const handlePointerLeave = useCallback(() => setIsPressed(false), []);
+
+  const orbStyle: React.CSSProperties = {
+    width: ORB_SIZE,
+    height: ORB_SIZE,
+    borderRadius: ORB_RADIUS,
+    background: GRADIENTS[color],
+    '--glow-color': GLOW_COLORS[color],
+    '--glow-hover-color': GLOW_HOVER[color],
+    border: 'none',
+    outline: 'none',
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: isLoading ? 'wait' : 'pointer',
+    animation: 'breath-orb 3s ease-in-out infinite',
+    transition: 'filter 200ms ease',
+    filter: 'brightness(1)',
+  };
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={isLoading}
-        className={
-          'flex h-[100px] w-[100px] items-center justify-center rounded-full sm:h-[120px] sm:w-[120px] lg:h-[140px] lg:w-[140px] ' +
-          bgColor +
-          ' transition-all duration-150 active:scale-[0.98] disabled:opacity-50 ' +
-          (isLoading
-            ? 'cursor-wait'
-            : 'cursor-pointer hover:brightness-110 hover:shadow-2xl hover:animate-none ' +
-              glowClass)
-        }
+    <button
+      type="button"
+      onClick={onClick}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
+      disabled={isLoading}
+      style={orbStyle}
+      onMouseEnter={(e) => {
+        const el = e.currentTarget;
+        el.style.animationPlayState = 'paused';
+        el.style.setProperty('--glow-color', GLOW_HOVER[color]);
+        el.style.filter = 'brightness(1.1)';
+        el.style.boxShadow = `0 0 40px ${GLOW_HOVER[color]}`;
+      }}
+      onMouseLeave={(e) => {
+        const el = e.currentTarget;
+        el.style.animationPlayState = 'running';
+        el.style.setProperty('--glow-color', GLOW_COLORS[color]);
+        el.style.filter = 'brightness(1)';
+        el.style.boxShadow = '';
+      }}
+    >
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{
+          borderRadius: ORB_RADIUS,
+          background: GRADIENTS[color],
+          transform: isPressed ? 'scale(1.06, 0.92)' : 'scale(1)',
+          transition: isPressed
+            ? 'transform 100ms ease'
+            : 'transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+          boxShadow: isPressed ? `0 0 40px ${GLOW_COLORS[color]}` : 'none',
+        }}
       >
         {isLoading ? (
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
-        ) : null}
-      </button>
-      <span className="text-sm font-semibold text-[var(--text-primary)]">{label}</span>
-    </div>
+        ) : (
+          <span
+            className="select-none"
+            style={{
+              color: '#fff',
+              fontWeight: 600,
+              fontSize: 'clamp(0.75rem, 2vw, 0.875rem)',
+              textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {label}
+          </span>
+        )}
+      </div>
+    </button>
   );
 }
 
@@ -174,18 +242,18 @@ export function CheckInButton({
     return (
       <div className="flex flex-col items-center gap-4">
         {departmentName && <p className="text-sm text-secondary">{departmentName}</p>}
-        <CircularButton
-          color={buttonColor(status)}
+        <OrbButton
+          color={orbColor(status)}
           onClick={doCheckOut}
           isLoading={isSubmitting}
           label="Check Out"
         />
-        <div className="flex flex-col items-center gap-2 rounded-2xl p-4 surface">
-          <div
+        <div className="flex flex-col items-center gap-2 rounded-2xl surface p-4">
+          <span
             className={`rounded-full px-4 py-1.5 text-sm font-semibold ${statusBadgeClass(status)}`}
           >
             {status}
-          </div>
+          </span>
           <p className="text-sm text-secondary">Checked in at {formatTime(checkInTime)}</p>
         </div>
         {error && <p className="text-xs text-sph-red">{error}</p>}
@@ -195,7 +263,7 @@ export function CheckInButton({
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <CircularButton color="green" onClick={doCheckIn} isLoading={isSubmitting} label="Check In" />
+      <OrbButton color="green" onClick={doCheckIn} isLoading={isSubmitting} label="Check In" />
       {error && <p className="text-xs text-sph-red">{error}</p>}
     </div>
   );
