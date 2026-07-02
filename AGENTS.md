@@ -8,20 +8,22 @@ SPH Attendance System — a multi-tenant attendance tracking platform for Swahil
 
 ## Commands
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Runs client (port 3000) + server (port 4000) concurrently |
-| `npm run dev:client` | Client only |
-| `npm run dev:server` | Server only |
-| `npm run build` | Build both (client first, then server) |
-| `npm run lint` | Lint both (client first, then server) |
-| `npm run format` | Prettier format all files |
+| Command              | Description                                               |
+| -------------------- | --------------------------------------------------------- |
+| `npm run dev`        | Runs client (port 3000) + server (port 4000) concurrently |
+| `npm run dev:client` | Client only                                               |
+| `npm run dev:server` | Server only                                               |
+| `npm run build`      | Build both (client first, then server)                    |
+| `npm run lint`       | Lint both (client first, then server)                     |
+| `npm run format`     | Prettier format all files                                 |
 
 **Client-specific** (run from `client/`):
+
 - `npm run lint` / `npm run lint:fix` — ESLint with Prettier plugin
 - `predev` script auto-clears `node_modules/.cache` before every dev start
 
 **Server-specific** (run from `server/`):
+
 - `npm run lint` / `npm run lint:fix` — ESLint with Prettier plugin
 - `npm run prisma:migrate` — Run Prisma migrations
 - `npm run prisma:generate` — Regenerate Prisma client
@@ -30,6 +32,7 @@ SPH Attendance System — a multi-tenant attendance tracking platform for Swahil
 ## Architecture
 
 ### Monorepo Structure
+
 ```
 sph-attendance-system/
 ├── client/          → Next.js 14 App Router (TypeScript, Tailwind, shadcn/ui)
@@ -39,6 +42,7 @@ sph-attendance-system/
 ```
 
 ### Client (Next.js 14 App Router)
+
 - **Design system**: "Vibrant Minimalist" — dark mode default, Linear/Stripe/Vercel aesthetic
 - **Font**: Plus Jakarta Sans (via `next/font/google`, variable `--font-sans`)
 - **Color tokens**: `sph-green` (#10B981), `sph-blue` (#2563EB), `sph-red` (#EF4444), `sph-amber` (#F59E0B), `sph-dark` (#0F172A)
@@ -51,6 +55,7 @@ sph-attendance-system/
 - **Tailwind config**: `darkMode: 'class'`, custom animations: `fade-in`, `slide-up`, `pulse-glow`, `gradient-shift`
 
 ### Server (Express + Prisma)
+
 - **Entry**: `src/server.ts` → `src/app.ts` (Express app setup with helmet, CORS, 10kb body limit)
 - **Database**: PostgreSQL via Prisma ORM, schema at `prisma/schema.prisma`
 - **Auth**: JWT with access + refresh tokens, bcrypt password hashing
@@ -61,6 +66,7 @@ sph-attendance-system/
 - **Multi-tenancy**: All data scoped to `organizationId`; org identified by `shortName`
 
 ### Key Domain Concepts
+
 - **Organization** → has Departments, Cohorts, Users, Holidays
 - **Department** → has shift times (shiftStart/shiftEnd as "HH:MM" strings), optional supervisor
 - **Cohort** → time-bounded group (startDate/endDate) with invite links
@@ -71,6 +77,7 @@ sph-attendance-system/
 - **Roles**: SUPER_ADMIN, DEPARTMENT_SUPERVISOR, STAFF, MEMBER, ATTACHEE
 
 ### Setup Flow
+
 First deployment → one-time setup wizard at `/setup` → creates org + super admin + departments. Backend endpoint `GET /setup/status` returns `{ setupRequired: boolean }`.
 
 ## Code Style

@@ -51,11 +51,17 @@ export async function createOrganization(
         },
       });
     } else {
+      const shortName =
+        name!.length > 10 ? name!.substring(0, 10).toUpperCase() : name!.toUpperCase();
+      const user = await prisma.user.findUnique({
+        where: { id: req.user!.id },
+        select: { email: true },
+      });
       org = await prisma.organization.create({
         data: {
           name: name!,
-          shortName: name.substring(0, 10).toUpperCase(),
-          email: req.user!.email,
+          shortName,
+          email: user!.email,
           timezone: timezone!,
           logoUrl: logoUrl ?? null,
         },
@@ -173,7 +179,7 @@ export async function setup(req: Request, res: Response, next: NextFunction): Pr
           passwordHash,
           role: 'SUPER_ADMIN',
           organizationId: org.id,
-          isActive: true,
+          status: 'ACTIVE',
         },
       });
       adminId = admin.id;

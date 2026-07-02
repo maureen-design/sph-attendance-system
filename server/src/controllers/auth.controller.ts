@@ -105,7 +105,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
         organizationId,
         cohortId: invite.cohortId,
         departmentId: invite.departmentId ?? null,
-        status: 'PENDING_APPROVAL',
+        status: 'ACTIVE',
       },
     });
 
@@ -232,9 +232,17 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       return;
     }
 
-    // 2) Check active
-    if (!user.isActive) {
-      respond.error(res, 'Account deactivated', 401);
+    // 2) Check status
+    if (user.status === 'PENDING_APPROVAL') {
+      respond.error(res, 'Your account is awaiting approval', 401);
+      return;
+    }
+    if (user.status === 'REJECTED') {
+      respond.error(res, 'Your registration was not approved', 401);
+      return;
+    }
+    if (user.status === 'INACTIVE') {
+      respond.error(res, 'Your account has been deactivated', 401);
       return;
     }
 
@@ -362,14 +370,31 @@ export async function refresh(req: Request, res: Response, next: NextFunction): 
       return;
     }
 
-    // 5) Sign new access token
+    // 5) Fetch user for fullName/email needed by client
+    const refreshedUser = await prisma.user.findUnique({
+      where: { id: payload.id },
+      select: { fullName: true, email: true, departmentId: true, status: true },
+    });
+
+    // 6) Sign new access token
     const newAccessToken = signAccessToken({
       id: payload.id,
       role: payload.role,
       organizationId: payload.organizationId,
     });
 
-    respond.success(res, { accessToken: newAccessToken });
+    respond.success(res, {
+      accessToken: newAccessToken,
+      user: {
+        id: payload.id,
+        fullName: refreshedUser?.fullName ?? '',
+        email: refreshedUser?.email ?? '',
+        role: payload.role,
+        organizationId: payload.organizationId,
+        departmentId: refreshedUser?.departmentId ?? null,
+        status: refreshedUser?.status ?? undefined,
+      },
+    });
   } catch (err) {
     next(err);
   }

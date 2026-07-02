@@ -11,6 +11,7 @@
 ## 1. The Problem We Are Solving
 
 SPH currently has:
+
 - Multiple separate links for check-in and check-out — fragmented and tiresome for users
 - A QR code at the door that links to a Google Form requiring credentials to be typed every single day
 - No unified place for supervisors or admins to filter and view attendance across departments
@@ -34,13 +35,13 @@ A unified, full-stack attendance and people management platform built specifical
 
 ## 3. User Types & Roles
 
-| Role | Description |
-|---|---|
-| Attachee | Cohort-based, department-assigned, limited to own record + work log |
-| Member | Long-term participant, not cohort-bound, no work log requirement |
-| Staff | Permanent team, department-assigned, no work log requirement |
-| Department Supervisor | Manages their department's people and data only |
-| Super Admin / Overall Lead | Full visibility and control across all departments |
+| Role                       | Description                                                         |
+| -------------------------- | ------------------------------------------------------------------- |
+| Attachee                   | Cohort-based, department-assigned, limited to own record + work log |
+| Member                     | Long-term participant, not cohort-bound, no work log requirement    |
+| Staff                      | Permanent team, department-assigned, no work log requirement        |
+| Department Supervisor      | Manages their department's people and data only                     |
+| Super Admin / Overall Lead | Full visibility and control across all departments                  |
 
 **Dropped:** Visitor — belongs in a separate reception tool, not the attendance system.
 
@@ -51,13 +52,13 @@ Each level sees downward only, never sideways or upward.
 
 ## 4. Departments at SPH
 
-| Department | Default Shift Window | Focus Area |
-|---|---|---|
-| Tech | 08:00 AM — 05:00 PM | Software, Networks, Hardware |
-| Communication | 08:30 AM — 05:00 PM | Social Media, PR, Journalism |
-| Creatives | 09:00 AM — 05:00 PM | Art, Design, Music, Theatre |
-| Youth Engagement | 08:30 AM — 04:30 PM | Community Outreach, Events |
-| Administration | 08:00 AM — 05:00 PM | Finance, Operations, Management |
+| Department       | Default Shift Window | Focus Area                      |
+| ---------------- | -------------------- | ------------------------------- |
+| Tech             | 08:00 AM — 05:00 PM  | Software, Networks, Hardware    |
+| Communication    | 08:30 AM — 05:00 PM  | Social Media, PR, Journalism    |
+| Creatives        | 09:00 AM — 05:00 PM  | Art, Design, Music, Theatre     |
+| Youth Engagement | 08:30 AM — 04:30 PM  | Community Outreach, Events      |
+| Administration   | 08:00 AM — 05:00 PM  | Finance, Operations, Management |
 
 All shift times are configurable by Super Admin. Additional departments can be added during setup.
 Each department has its own supervisor. The Overall Lead / Super Admin sees all departments.
@@ -69,6 +70,7 @@ Each department has its own supervisor. The Overall Lead / Super Admin sees all 
 Attachees are cohort-based — they join in groups with a defined start and end date.
 
 **Cohort structure:**
+
 - Cohort name (e.g., SPH 002 2026)
 - Start date and end date
 - Departments involved
@@ -78,6 +80,7 @@ Attachees are cohort-based — they join in groups with a defined start and end 
 - Reporting is cohort-aware — compare cohort performance over time
 
 **Onboarding via cohort:**
+
 - Admin creates cohort in system
 - System generates a unique invite link tied to that cohort
 - Admin shares link in the cohort WhatsApp group — one message, one time
@@ -87,12 +90,14 @@ Attachees are cohort-based — they join in groups with a defined start and end 
 - After verification — active, logged in, in correct cohort and department automatically
 
 **Invite link rules:**
+
 - Expires after cohort start date passes
 - Single-use per person — duplicate attempts flagged and logged
 - Revocable by admin if shared outside intended group
 - Optional restriction: allowlist by email domain or preloaded invite list
 
 **Bulk upload option:**
+
 - Admin can upload CSV of names and emails
 - System creates accounts and sends each person a setup link
 
@@ -109,6 +114,7 @@ WhatsApp is used exactly once per cohort — to share the registration invite li
 **The solution:** Single unified platform — one login, one check-in action.
 
 ### Check-In Flow
+
 1. Attachee/staff registers and logs in once on day one
 2. Session persists securely on their device
 3. When they arrive, they open the app — already logged in
@@ -117,6 +123,7 @@ WhatsApp is used exactly once per cohort — to share the registration invite li
 6. One tap. Done. No typing.
 
 ### QR Code Design
+
 - The door QR is a location anchor, not a form link
 - QR codes rotate every 15 minutes — prevents screenshot fraud
 - App caches the current valid QR token when it last had internet connection
@@ -136,14 +143,15 @@ Unresolved: After cutoff with no check-in or excuse
 
 **Default cutoff times (configurable):**
 
-| User Type | Default Cutoff |
-|---|---|
-| Attachee | 10:00 AM |
-| Member | 9:30 AM |
-| Staff | 9:00 AM |
-| Administration | 9:00 AM |
+| User Type      | Default Cutoff |
+| -------------- | -------------- |
+| Attachee       | 10:00 AM       |
+| Member         | 9:30 AM        |
+| Staff          | 9:00 AM        |
+| Administration | 9:00 AM        |
 
 ### Cutoff & Absence Flow
+
 1. Before cutoff — reminder notification sent
 2. At cutoff, no check-in, no excuse — status: Unresolved, supervisor notified
 3. Grace window (1-2 hours) — person can still submit excuse or absence request
@@ -156,11 +164,13 @@ Unresolved: After cutoff with no check-in or excuse
 ## 8. Check-Out System — Self-Healing Workflow
 
 ### Normal Flow
+
 - Same app, same door QR — system knows it's a check-out because user is already checked in
 - Hero component switches to Check Out button automatically after check-in
 - Left Early calculated automatically if check-out time is before department end time
 
 ### Forgotten Check-Out
+
 1. 30 minutes before shift end — notification: "Don't forget to check out"
 2. At shift end, no check-out — record flagged, supervisor notified
 3. Next morning, user logs in — prompt appears before today's check-in
@@ -170,27 +180,27 @@ Unresolved: After cutoff with no check-in or excuse
 
 ### Check-Out Status Types
 
-| Status | Meaning |
-|---|---|
-| Check-Out — Scanned | QR scanned at door — most reliable |
+| Status                    | Meaning                                          |
+| ------------------------- | ------------------------------------------------ |
+| Check-Out — Scanned       | QR scanned at door — most reliable               |
 | Check-Out — User Reported | Time submitted next morning — plausible, flagged |
-| Check-Out — Auto Closed | System closed it — actual departure unknown |
+| Check-Out — Auto Closed   | System closed it — actual departure unknown      |
 
 ---
 
 ## 9. Attendance Statuses
 
-| Status | Meaning |
-|---|---|
-| Early | Checked in before the early threshold |
-| On-Time | Checked in within the on-time window including grace |
-| Late | Checked in after grace but before cutoff |
-| Unresolved | Past cutoff, no check-in, no excuse yet |
-| Absent — Excuse Pending | Excuse submitted, awaiting supervisor decision |
-| Excused Absence | Approved excuse |
-| Absent — Unexcused | No check-in, no excuse, grace window passed |
-| Left Early | Checked out before department end time |
-| Disputed | User has flagged the record for review |
+| Status                  | Meaning                                              |
+| ----------------------- | ---------------------------------------------------- |
+| Early                   | Checked in before the early threshold                |
+| On-Time                 | Checked in within the on-time window including grace |
+| Late                    | Checked in after grace but before cutoff             |
+| Unresolved              | Past cutoff, no check-in, no excuse yet              |
+| Absent — Excuse Pending | Excuse submitted, awaiting supervisor decision       |
+| Excused Absence         | Approved excuse                                      |
+| Absent — Unexcused      | No check-in, no excuse, grace window passed          |
+| Left Early              | Checked out before department end time               |
+| Disputed                | User has flagged the record for review               |
 
 Status is calculated automatically by the server. Never entered manually.
 
@@ -204,6 +214,7 @@ Status is calculated automatically by the server. Never entered manually.
 **Multi-tenancy:** Every query scoped to organizationId from user's token.
 
 ### Key Tables
+
 - `organizations` — multi-tenant root, timezone, logo
 - `users` — credentials, profile, role, org, dept, cohort
 - `departments` — name, supervisor, shift times
@@ -226,19 +237,23 @@ Status is calculated automatically by the server. Never entered manually.
 ## 11. Security & Access Control
 
 ### Two Enforcement Layers
+
 1. Frontend — UI only renders what the role permits
 2. Backend — every API request verified before data is returned
 
 ### Multi-Tenant Isolation
+
 Every query scoped to organization ID from user's token. Architectural, not optional.
 
 ### Audit Trail
+
 - Every data-changing action logged permanently
 - Logs: who, what, before/after, when, device/IP
 - Read-only — nobody can edit or delete, including Super Admin
 - Manual overrides require written reason, notify affected user
 
 ### High-Risk Operations
+
 - Manual record override — supervisor/admin only, reason required, user notified
 - Account deactivation — super admin only, immediate, logged
 - Bulk data export — super admin only, logged
@@ -259,13 +274,13 @@ Every query scoped to organization ID from user's token. Architectural, not opti
 
 ## 13. Password Recovery & Account Access
 
-| Situation | Path |
-|---|---|
-| Forgot password, has email | Email reset link (expires 30 minutes, single-use) |
-| Forgot password, no email | SMS code to phone — Phase 2 |
-| Lost both | Supervisor verifies in person → Super Admin manual reset |
-| Supervisor resets team member | Not allowed — protects against misuse |
-| Super Admin resets anyone | Yes, with mandatory reason and audit log entry |
+| Situation                     | Path                                                     |
+| ----------------------------- | -------------------------------------------------------- |
+| Forgot password, has email    | Email reset link (expires 30 minutes, single-use)        |
+| Forgot password, no email     | SMS code to phone — Phase 2                              |
+| Lost both                     | Supervisor verifies in person → Super Admin manual reset |
+| Supervisor resets team member | Not allowed — protects against misuse                    |
+| Super Admin resets anyone     | Yes, with mandatory reason and audit log entry           |
 
 ---
 
@@ -308,6 +323,7 @@ Every query scoped to organization ID from user's token. Architectural, not opti
 **Applies to:** Attachees only — Members and Staff are exempt
 
 ### Required Fields
+
 - Date
 - Summary of work
 - Progress made
@@ -315,11 +331,13 @@ Every query scoped to organization ID from user's token. Architectural, not opti
 - Optional flag: needs help
 
 ### Timing
+
 - Reminder fires 30 minutes before department end time
 - Second nudge appears at check-out if not yet submitted
 - If ignored — day shows as "Work Log Missing" — visible to supervisor, not punitive
 
 ### Supervisor Actions
+
 - Filter logs by date, cohort, person
 - Add feedback note per entry
 
@@ -340,6 +358,7 @@ Every query scoped to organization ID from user's token. Architectural, not opti
 ## 19. Supervisor Dashboard
 
 ### Immediate Visibility
+
 - How many people are checked in right now
 - How many are late today
 - Who hasn't checked in yet (by name)
@@ -347,6 +366,7 @@ Every query scoped to organization ID from user's token. Architectural, not opti
 - Any disputed records pending review
 
 ### Filters
+
 - Date Range: Today, This Week, Custom Range
 - Department / Team
 - Status: Late, On-Time, Absent, Left Early, Unresolved
@@ -354,6 +374,7 @@ Every query scoped to organization ID from user's token. Architectural, not opti
 - Employee Name search
 
 ### Reporting & Export (Phase 1)
+
 - CSV export scoped to role — supervisors see their dept only, admins see all
 - Minimum fields: name, department, cohort, check-in/out times, status, check-out method, override flag
 
@@ -362,11 +383,13 @@ Every query scoped to organization ID from user's token. Architectural, not opti
 ## 20. User Personal Dashboard
 
 ### Three Questions Answered on Login
+
 1. What is my status today?
 2. How am I doing overall?
 3. Is there anything I need to act on?
 
 ### Sections
+
 - Today's Card: check-in time, status, check-out time
 - Portfolio Metrics: punctuality streak, attendance score ring, engagement rate
 - History View: calendar month view color-coded + list view
@@ -376,11 +399,13 @@ Every query scoped to organization ID from user's token. Architectural, not opti
 ## 21. Notifications System
 
 ### Three Delivery Layers
+
 1. In-App — always works, no permissions needed
 2. Push Notification — if browser permission granted
 3. Email — fallback for critical notifications if push missed
 
 ### Provider Policy (Phase 1)
+
 - Email: Resend (recommended)
 - Push: Web Push via PWA
 - SMS: deferred to Phase 2 (Africa's Talking or Twilio)
@@ -409,12 +434,12 @@ Every query scoped to organization ID from user's token. Architectural, not opti
 
 ## 24. Privacy & Data Retention
 
-| Period | What Happens |
-|---|---|
-| During cohort | Full access, active account |
+| Period                     | What Happens                                               |
+| -------------------------- | ---------------------------------------------------------- |
+| During cohort              | Full access, active account                                |
 | 0–90 days after cohort end | Account active — can log in, view record, export portfolio |
-| 90 days after cohort end | Account archived — cannot log in, data retained |
-| 1 year after cohort end | Personal details anonymized, aggregate data retained |
+| 90 days after cohort end   | Account archived — cannot log in, data retained            |
+| 1 year after cohort end    | Personal details anonymized, aggregate data retained       |
 
 Super Admin can extend retention or trigger early anonymization.
 
@@ -425,22 +450,26 @@ Super Admin can extend retention or trigger early anonymization.
 **Reference:** Linear, Stripe, Vercel — premium SaaS, not corporate HR software.
 
 ### Color Tokens
-| Token | Value | Usage |
-|---|---|---|
-| sph-green | #10B981 | Early / On-Time |
-| sph-blue | #2563EB | Standard alerts / info |
-| sph-red | #EF4444 | Critical alerts |
-| sph-dark | #0F172A | Dark mode background |
-| sph-light | #F8F9FA | Light mode background |
+
+| Token     | Value   | Usage                  |
+| --------- | ------- | ---------------------- |
+| sph-green | #10B981 | Early / On-Time        |
+| sph-blue  | #2563EB | Standard alerts / info |
+| sph-red   | #EF4444 | Critical alerts        |
+| sph-dark  | #0F172A | Dark mode background   |
+| sph-light | #F8F9FA | Light mode background  |
 
 ### Typography
+
 - Inter, Plus Jakarta Sans, or Geist
 - Maximum two fonts, large confident headings, strong hierarchy
 
 ### Dark Mode
+
 Non-negotiable. Developers, creatives, varied working hours.
 
 ### Dashboard Layout (Post-Login)
+
 - Section A — Greeting: "Habari, [Name]" — Department | Cohort — sync indicator
 - Section B — Hero Check-In: dynamic state button
 - Section C — Portfolio Metrics: streak, attendance score ring, announcement badge
@@ -450,20 +479,20 @@ Non-negotiable. Developers, creatives, varied working hours.
 
 ## 26. Tech Stack
 
-| Layer | Choice |
-|---|---|
-| Frontend | Next.js 14 + Tailwind CSS + TypeScript |
-| Backend | Node.js + Express + TypeScript |
-| Database | PostgreSQL |
-| ORM | Prisma |
-| Auth | JWT + bcrypt (access token 15m, refresh token 30d) |
-| Real-time | Socket.io |
-| Background Jobs | Node cron |
-| Email | Resend |
-| SMS (Phase 2) | Africa's Talking or Twilio |
-| File Export | CSV (Phase 1), PDF (Phase 2) |
-| Deployment | Vercel (frontend) + Railway (backend + DB) |
-| PWA | Configured in Next.js from day one |
+| Layer           | Choice                                             |
+| --------------- | -------------------------------------------------- |
+| Frontend        | Next.js 14 + Tailwind CSS + TypeScript             |
+| Backend         | Node.js + Express + TypeScript                     |
+| Database        | PostgreSQL                                         |
+| ORM             | Prisma                                             |
+| Auth            | JWT + bcrypt (access token 15m, refresh token 30d) |
+| Real-time       | Socket.io                                          |
+| Background Jobs | Node cron                                          |
+| Email           | Resend                                             |
+| SMS (Phase 2)   | Africa's Talking or Twilio                         |
+| File Export     | CSV (Phase 1), PDF (Phase 2)                       |
+| Deployment      | Vercel (frontend) + Railway (backend + DB)         |
+| PWA             | Configured in Next.js from day one                 |
 
 ---
 
@@ -494,6 +523,7 @@ Non-negotiable. Developers, creatives, varied working hours.
 **URL:** github.com/maureen-design/sph-attendance-system
 
 ### Branch Strategy
+
 ```
 main      → production only, no direct pushes
 develop   → working branch, all features merge here first
@@ -502,6 +532,7 @@ fix/*     → one branch per bug fix
 ```
 
 ### Commit Convention
+
 ```
 feat: add QR rotation logic
 fix: correct late status calculation
@@ -515,13 +546,14 @@ chore: update dependencies
 
 ## 30. Deployment
 
-| Part | Platform |
-|---|---|
-| Frontend | Vercel |
-| Backend + DB | Railway |
-| Domain | attendance.swahilipothub.org |
+| Part         | Platform                     |
+| ------------ | ---------------------------- |
+| Frontend     | Vercel                       |
+| Backend + DB | Railway                      |
+| Domain       | attendance.swahilipothub.org |
 
 ### Environments
+
 - Local → Staging → Production
 - CI/CD via GitHub Actions — auto-deploys on merge to main
 - Tests must pass before any deployment proceeds
@@ -531,6 +563,7 @@ chore: update dependencies
 ## 31. Build Order
 
 ### Phase 1 — Core (Building Now)
+
 1. ✅ Project scaffold — Next.js + Tailwind + PostgreSQL + Node backend + PWA config
 2. ✅ Full domain schema — 20 models, 7 enums
 3. ✅ Foundation sprint — env config, Prisma singleton, middleware, JWT utils, hash utils, response utils
@@ -543,6 +576,7 @@ chore: update dependencies
 10. Work logs — daily progress journal, reminders
 
 ### Phase 2 — Enhancement (After Core Is Live)
+
 11. Portfolio PDF export
 12. Behavioral insights — pattern detection, anomaly alerts
 13. Bulk CSV user import
@@ -554,15 +588,15 @@ chore: update dependencies
 
 ## 32. What Was Deliberately Dropped or Deferred
 
-| Item | Decision | Reason |
-|---|---|---|
-| Visitor user type | Dropped | Separate reception tool |
-| Mood emoji check-in | Dropped | Undermines professional feel |
-| Predictive absence | Dropped | Too speculative for v1 |
-| Biometric hardware | Deferred | Infrastructure dependency |
-| Geofence | Phase 2 | QR cache solves it cleanly for Phase 1 |
-| SMS notifications | Phase 2 | Email sufficient for Phase 1 |
-| PDF portfolio export | Phase 2 | CSV sufficient for Phase 1 |
+| Item                 | Decision | Reason                                 |
+| -------------------- | -------- | -------------------------------------- |
+| Visitor user type    | Dropped  | Separate reception tool                |
+| Mood emoji check-in  | Dropped  | Undermines professional feel           |
+| Predictive absence   | Dropped  | Too speculative for v1                 |
+| Biometric hardware   | Deferred | Infrastructure dependency              |
+| Geofence             | Phase 2  | QR cache solves it cleanly for Phase 1 |
+| SMS notifications    | Phase 2  | Email sufficient for Phase 1           |
+| PDF portfolio export | Phase 2  | CSV sufficient for Phase 1             |
 
 ---
 
@@ -579,5 +613,6 @@ chore: update dependencies
 
 ---
 
-*Planning completed June 12–13, 2026. Foundation Sprint completed June 17, 2026. Auth Sprint next.*
+_Planning completed June 12–13, 2026. Foundation Sprint completed June 17, 2026. Auth Sprint next._
+
 > Placeholder. Full brief to be added.

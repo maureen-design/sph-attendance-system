@@ -1,5 +1,11 @@
 import 'dotenv/config';
-import { PrismaClient, Role, AttendanceStatus, CheckInMethod, CheckOutMethod } from '@prisma/client';
+import {
+  PrismaClient,
+  Role,
+  AttendanceStatus,
+  CheckInMethod,
+  CheckOutMethod,
+} from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -104,7 +110,7 @@ async function main() {
       role: Role.SUPER_ADMIN,
       organizationId: org.id,
       passwordHash: defaultHash,
-      isActive: true,
+      status: 'ACTIVE',
     },
   });
 
@@ -127,7 +133,7 @@ async function main() {
           organizationId: org.id,
           departmentId: departments[s.dept].id,
           passwordHash: defaultHash,
-          isActive: true,
+          status: 'ACTIVE',
         },
       }),
     ),
@@ -157,7 +163,7 @@ async function main() {
           organizationId: org.id,
           departmentId: departments[s.dept].id,
           passwordHash: defaultHash,
-          isActive: true,
+          status: 'ACTIVE',
         },
       }),
     ),
@@ -165,10 +171,25 @@ async function main() {
 
   // 7) ATTACHEES
   const attacheeData = [
-    { fullName: 'Hannah Attachee', email: 'hannah.att@sphattendance.com', dept: 0, cohort: cohort1.id },
+    {
+      fullName: 'Hannah Attachee',
+      email: 'hannah.att@sphattendance.com',
+      dept: 0,
+      cohort: cohort1.id,
+    },
     { fullName: 'Ian Attachee', email: 'ian.att@sphattendance.com', dept: 0, cohort: cohort1.id },
-    { fullName: 'Julia Attachee', email: 'julia.att@sphattendance.com', dept: 2, cohort: cohort2.id },
-    { fullName: 'Kevin Attachee', email: 'kevin.att@sphattendance.com', dept: 3, cohort: cohort2.id },
+    {
+      fullName: 'Julia Attachee',
+      email: 'julia.att@sphattendance.com',
+      dept: 2,
+      cohort: cohort2.id,
+    },
+    {
+      fullName: 'Kevin Attachee',
+      email: 'kevin.att@sphattendance.com',
+      dept: 3,
+      cohort: cohort2.id,
+    },
     { fullName: 'Liam Attachee', email: 'liam.att@sphattendance.com', dept: 4, cohort: cohort1.id },
   ];
 
@@ -183,7 +204,7 @@ async function main() {
           departmentId: departments[a.dept].id,
           cohortId: a.cohort,
           passwordHash: defaultHash,
-          isActive: true,
+          status: 'ACTIVE',
         },
       }),
     ),
@@ -238,8 +259,8 @@ async function main() {
       const statusRoll = Math.random();
       let status: AttendanceStatus;
       if (statusRoll < 0.55) status = 'ON_TIME';
-      else if (statusRoll < 0.70) status = 'LATE';
-      else if (statusRoll < 0.80) status = 'EARLY';
+      else if (statusRoll < 0.7) status = 'LATE';
+      else if (statusRoll < 0.8) status = 'EARLY';
       else if (statusRoll < 0.88) status = 'LEFT_EARLY';
       else if (statusRoll < 0.94) status = 'UNRESOLVED';
       else status = 'ABSENT_UNEXCUSED';
@@ -259,7 +280,8 @@ async function main() {
         date,
         status,
         checkInTime: isPresent ? makeTime(date, checkInHour, checkInMin) : null,
-        checkOutTime: isPresent && Math.random() > 0.2 ? makeTime(date, checkOutHour, checkOutMin) : null,
+        checkOutTime:
+          isPresent && Math.random() > 0.2 ? makeTime(date, checkOutHour, checkOutMin) : null,
         checkInMethod: isPresent ? CheckInMethod.QR : null,
         checkOutMethod: isPresent && Math.random() > 0.2 ? CheckOutMethod.SCANNED : null,
       });
