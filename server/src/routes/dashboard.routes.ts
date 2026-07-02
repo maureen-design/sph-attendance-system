@@ -5,6 +5,8 @@ import {
   exportAttendance,
   getPersonalDashboard,
   getSupervisorSummary,
+  getAdminReviewItems,
+  getEscalatedItems,
 } from '../controllers/dashboard.controller.js';
 import { authenticateToken, requireRole } from '../middleware/index.js';
 
@@ -38,6 +40,19 @@ router.get(
   '/supervisor/summary',
   requireRole('SUPER_ADMIN', 'DEPARTMENT_SUPERVISOR'),
   getSupervisorSummary,
+);
+
+// Admin-specific endpoints - restricted to SUPER_ADMIN
+router.get(
+  '/admin/review',
+  requireRole('SUPER_ADMIN'),
+  getAdminReviewItems,
+);
+
+router.get(
+  '/admin/escalated',
+  requireRole('SUPER_ADMIN'),
+  getEscalatedItems,
 );
 
 export default router;

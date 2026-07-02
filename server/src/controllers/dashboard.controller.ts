@@ -1,5 +1,5 @@
 ﻿import { Role, type AttendanceStatus } from '@prisma/client';
-import { format, subDays, eachDayOfInterval, isWeekend, startOfWeek, endOfWeek } from 'date-fns';
+import { format, subDays, eachDayOfInterval, isWeekend, startOfWeek, endOfWeek, subHours } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import type { Request, Response, NextFunction } from 'express';
 import prisma from '../db/prisma.js';
@@ -157,20 +157,20 @@ export async function getSupervisorDashboard(
       scopedDeptId
         ? cohortId
           ? await prisma.user.findMany({
-              where: { organizationId, isActive: true, departmentId: scopedDeptId, cohortId },
+              where: { organizationId, status: 'ACTIVE', departmentId: scopedDeptId, cohortId },
               select: { id: true, fullName: true, role: true },
             })
           : await prisma.user.findMany({
-              where: { organizationId, isActive: true, departmentId: scopedDeptId },
+              where: { organizationId, status: 'ACTIVE', departmentId: scopedDeptId },
               select: { id: true, fullName: true, role: true },
             })
         : cohortId
           ? await prisma.user.findMany({
-              where: { organizationId, isActive: true, cohortId },
+              where: { organizationId, status: 'ACTIVE', cohortId },
               select: { id: true, fullName: true, role: true },
             })
           : await prisma.user.findMany({
-              where: { organizationId, isActive: true },
+              where: { organizationId, status: 'ACTIVE' },
               select: { id: true, fullName: true, role: true },
             })
     ) as BaseUser[];
@@ -237,7 +237,7 @@ export async function getLiveDashboard(
     const deptSelect = {
       id: true,
       name: true,
-      _count: { select: { users: { where: { isActive: true } } } },
+      _count: { select: { users: { where: { status: 'ACTIVE' } } } },
     } as const;
 
     const departments = (
@@ -689,6 +689,245 @@ export async function getSupervisorSummary(
       departmentAverage: avgRate,
       perPerson,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// --- ENDPOINT 6: GET /api/dashboard/admin/review ---------------------------
+
+export async function getAdminReviewItems(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const organizationId = req.user!.organizationId;
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { timezone: true },
+    });
+    const orgTimezone = org?.timezone ?? 'Africa/Nairobi';
+    const todayDateStr = getTodayStr(orgTimezone);
+    const todayDate = new Date(todayDateStr + 'T00:00:00.000Z');
+
+    // Get all supervisors
+    const supervisors = await prisma.user.findMany({
+      where: {
+        organizationId,
+        role: Role.DEPARTMENT_SUPERVISOR,
+        status: 'ACTIVE',
+      },
+      select: {
+        id: true,
+        fullName: true,
+        role: true,
+        departmentId: true,
+      },
+    });
+
+    const supervisorIds = supervisors.map((s: { id: string }) => s.id);
+
+    // Get today's attendance for supervisors
+    const supervisorAttendance = await prisma.attendanceLog.findMany({
+      where: {
+        userId: { in: supervisorIds },
+        date: todayDate,
+      },
+      select: {
+        userId: true,
+        status: true,
+      },
+    });
+
+    const attendanceMap = new Map(
+      supervisorAttendance.map((a: { userId: string; status: string }) => [a.userId, a.status]),
+    );
+
+    // Get unresolved disputes for supervisors
+    const supervisorDisputes = await prisma.dispute.findMany({
+      where: {
+        userId: { in: supervisorIds },
+        resolvedAt: null,
+      },
+      select: {
+        id: true,
+        userId: true,
+        reason: true,
+        createdAt: true,
+      },
+    });
+
+    // Get pending leave requests for supervisors
+    const supervisorLeaves = await prisma.leave.findMany({
+      where: {
+        userId: { in: supervisorIds },
+        status: 'PENDING',
+      },
+      select: {
+        id: true,
+        userId: true,
+        reason: true,
+        startDate: true,
+        createdAt: true,
+      },
+    });
+
+    // Build unified list
+    const issues: Array<{
+      id: string;
+      userId: string;
+      fullName: string;
+      role: string;
+      type: 'attendance' | 'dispute' | 'leave';
+      reason?: string;
+      date?: string;
+      createdAt: string;
+    }> = [];
+
+    for (const supervisor of supervisors) {
+      const attendanceStatus = attendanceMap.get(supervisor.id) || null;
+
+      // Attendance issues: Late, Unresolved, or Absent (no record)
+      if (!attendanceStatus || attendanceStatus === 'LATE' || attendanceStatus === 'UNRESOLVED') {
+        issues.push({
+          id: `attendance-${supervisor.id}`,
+          userId: supervisor.id,
+          fullName: supervisor.fullName,
+          role: supervisor.role,
+          type: 'attendance',
+          reason: !attendanceStatus ? 'No check-in record' : attendanceStatus,
+          date: todayDate.toISOString(),
+          createdAt: todayDate.toISOString(),
+        });
+      }
+
+      // Disputes
+      const userDisputes = supervisorDisputes.filter((d: { userId: string }) => d.userId === supervisor.id);
+      for (const dispute of userDisputes) {
+        issues.push({
+          id: dispute.id,
+          userId: supervisor.id,
+          fullName: supervisor.fullName,
+          role: supervisor.role,
+          type: 'dispute',
+          reason: dispute.reason,
+          createdAt: dispute.createdAt.toISOString(),
+        });
+      }
+
+      // Leave requests
+      const userLeaves = supervisorLeaves.filter((l: { userId: string }) => l.userId === supervisor.id);
+      for (const leave of userLeaves) {
+        issues.push({
+          id: leave.id,
+          userId: supervisor.id,
+          fullName: supervisor.fullName,
+          role: supervisor.role,
+          type: 'leave',
+          reason: leave.reason,
+          date: leave.startDate.toISOString(),
+          createdAt: leave.createdAt.toISOString(),
+        });
+      }
+    }
+
+    respond.success(res, { issues });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// --- ENDPOINT 7: GET /api/dashboard/admin/escalated -------------------------
+
+export async function getEscalatedItems(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const organizationId = req.user!.organizationId;
+
+    // Disputes unresolved after 48 hours
+    const fortyEightHoursAgo = subHours(new Date(), 48);
+    const escalatedDisputes = await prisma.dispute.findMany({
+      where: {
+        resolvedAt: null,
+        createdAt: { lte: fortyEightHoursAgo },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            role: true,
+            organizationId: true,
+          },
+        },
+      },
+    });
+
+    // Leave requests pending for more than 3 business days
+    // Simplified: use 72 hours for now (3 business days would need holiday calculation)
+    const seventyTwoHoursAgo = subHours(new Date(), 72);
+    const escalatedLeaves = await prisma.leave.findMany({
+      where: {
+        status: 'PENDING',
+        createdAt: { lte: seventyTwoHoursAgo },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            role: true,
+            organizationId: true,
+          },
+        },
+      },
+    });
+
+    const issues: Array<{
+      id: string;
+      userId: string;
+      fullName: string;
+      role: string;
+      type: 'dispute' | 'leave';
+      reason?: string;
+      date?: string;
+      createdAt: string;
+    }> = [];
+
+    for (const dispute of escalatedDisputes) {
+      if (dispute.user.organizationId === organizationId) {
+        issues.push({
+          id: dispute.id,
+          userId: dispute.userId,
+          fullName: dispute.user.fullName,
+          role: dispute.user.role,
+          type: 'dispute',
+          reason: dispute.reason,
+          createdAt: dispute.createdAt.toISOString(),
+        });
+      }
+    }
+
+    for (const leave of escalatedLeaves) {
+      if (leave.user.organizationId === organizationId) {
+        issues.push({
+          id: leave.id,
+          userId: leave.userId,
+          fullName: leave.user.fullName,
+          role: leave.user.role,
+          type: 'leave',
+          reason: leave.reason,
+          date: leave.startDate.toISOString(),
+          createdAt: leave.createdAt.toISOString(),
+        });
+      }
+    }
+
+    respond.success(res, { issues });
   } catch (err) {
     next(err);
   }

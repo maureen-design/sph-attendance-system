@@ -78,7 +78,7 @@ async function main() {
       organizationId: org.id,
       startDate: new Date('2026-01-01'),
       endDate: new Date('2026-06-30'),
-      isActive: true,
+     isActive: true,
     },
   });
 
@@ -104,7 +104,7 @@ async function main() {
       role: Role.SUPER_ADMIN,
       organizationId: org.id,
       passwordHash: defaultHash,
-      isActive: true,
+      status: 'ACTIVE',
     },
   });
 
@@ -127,7 +127,7 @@ async function main() {
           organizationId: org.id,
           departmentId: departments[s.dept].id,
           passwordHash: defaultHash,
-          isActive: true,
+          status: 'ACTIVE',
         },
       }),
     ),
@@ -157,7 +157,7 @@ async function main() {
           organizationId: org.id,
           departmentId: departments[s.dept].id,
           passwordHash: defaultHash,
-          isActive: true,
+          status: 'ACTIVE',
         },
       }),
     ),
@@ -183,7 +183,7 @@ async function main() {
           departmentId: departments[a.dept].id,
           cohortId: a.cohort,
           passwordHash: defaultHash,
-          isActive: true,
+          status: 'ACTIVE',
         },
       }),
     ),

@@ -1,5 +1,5 @@
 ﻿import { format } from 'date-fns';
-import { fromZonedTime } from 'date-fns-tz';
+import { fromZonedTime, toZonedTime } from 'date-fns-tz';
 import { AttendanceStatus } from '@prisma/client';
 
 /**
@@ -8,7 +8,8 @@ import { AttendanceStatus } from '@prisma/client';
  * date-fns-tz's timezone-safe API (avoids system-local setHours).
  */
 function buildTimeOnDate(date: Date, timeStr: string, timezone: string): Date {
-  const dateStr = format(date, 'yyyy-MM-dd', { timeZone: timezone });
+  const zonedDate = toZonedTime(date, timezone);
+  const dateStr = format(zonedDate, 'yyyy-MM-dd');
   return fromZonedTime(`${dateStr}T${timeStr}:00`, timezone);
 }
 

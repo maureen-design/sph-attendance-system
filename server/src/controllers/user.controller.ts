@@ -15,7 +15,7 @@ type UserRow = {
   organizationId: string;
   departmentId: string | null;
   cohortId: string | null;
-  isActive: boolean;
+  status: string;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -65,8 +65,8 @@ export async function getUsers(req: Request, res: Response, next: NextFunction):
     if (scopedDeptId) where.departmentId = scopedDeptId;
     if (role) where.role = role;
     if (cohortId) where.cohortId = cohortId;
-    if (isActive === 'true') where.isActive = true;
-    if (isActive === 'false') where.isActive = false;
+    if (isActive === 'true') where.status = 'ACTIVE';
+    if (isActive === 'false') where.status = 'INACTIVE';
     if (search) {
       where.fullName = { contains: search, mode: 'insensitive' };
     }
@@ -82,7 +82,7 @@ export async function getUsers(req: Request, res: Response, next: NextFunction):
         organizationId: true,
         departmentId: true,
         cohortId: true,
-        isActive: true,
+        status: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -117,7 +117,7 @@ export async function getUserById(req: Request, res: Response, next: NextFunctio
         organizationId: true,
         departmentId: true,
         cohortId: true,
-        isActive: true,
+        status: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -204,7 +204,7 @@ export async function updateUserRole(
         email: true,
         role: true,
         departmentId: true,
-        isActive: true,
+        status: true,
       },
     });
 
@@ -253,7 +253,7 @@ export async function deactivateUser(
 
     await prisma.user.update({
       where: { id: targetId },
-      data: { isActive: false },
+      data: { status: 'INACTIVE' },
     });
 
     // Revoke all refresh tokens
@@ -301,7 +301,7 @@ export async function reactivateUser(
 
     await prisma.user.update({
       where: { id: targetId },
-      data: { isActive: true },
+      data: { status: 'ACTIVE' },
     });
 
     // Audit log

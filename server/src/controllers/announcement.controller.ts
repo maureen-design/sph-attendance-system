@@ -85,7 +85,7 @@ export async function createAnnouncement(
     // Find target users for notifications
     const userWhere: Record<string, unknown> = {
       organizationId,
-      isActive: true,
+      status: 'ACTIVE',
     };
     if (scopedDeptId) userWhere.departmentId = scopedDeptId;
 
@@ -185,7 +185,7 @@ export async function getAnnouncements(
       announcements.map(async (ann) => {
         const targetWhere: Record<string, unknown> = {
           organizationId,
-          isActive: true,
+          status: 'ACTIVE',
         };
         if (ann.departmentId) targetWhere.departmentId = ann.departmentId;
 
@@ -320,7 +320,7 @@ export async function getReceipts(req: Request, res: Response, next: NextFunctio
     const total = await prisma.user.count({
       where: {
         organizationId: announcement.organizationId,
-        isActive: true,
+        status: 'ACTIVE',
         ...(announcement.departmentId && { departmentId: announcement.departmentId }),
       },
     });

@@ -190,7 +190,7 @@ export async function getDepartmentWorkLogs(
     // Build user filter
     const userWhere: Record<string, unknown> = {
       organizationId,
-      isActive: true,
+      status: 'ACTIVE',
       role: Role.ATTACHEE,
     };
     if (scopedDeptId) userWhere.departmentId = scopedDeptId;
@@ -311,7 +311,7 @@ export async function getMissingWorkLogs(
     // Get all active attachees
     const userWhere: Record<string, unknown> = {
       organizationId,
-      isActive: true,
+      status: 'ACTIVE',
       role: Role.ATTACHEE,
     };
     if (scopedDeptId) userWhere.departmentId = scopedDeptId;

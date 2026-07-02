@@ -105,7 +105,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
         organizationId,
         cohortId: invite.cohortId,
         departmentId: invite.departmentId ?? null,
-        status: 'PENDING_APPROVAL',
+        status: 'ACTIVE',
       },
     });
 
@@ -232,9 +232,17 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       return;
     }
 
-    // 2) Check active
-    if (!user.isActive) {
-      respond.error(res, 'Account deactivated', 401);
+    // 2) Check status
+    if (user.status === 'PENDING_APPROVAL') {
+      respond.error(res, 'Your account is awaiting approval', 401);
+      return;
+    }
+    if (user.status === 'REJECTED') {
+      respond.error(res, 'Your registration was not approved', 401);
+      return;
+    }
+    if (user.status === 'INACTIVE') {
+      respond.error(res, 'Your account has been deactivated', 401);
       return;
     }
 

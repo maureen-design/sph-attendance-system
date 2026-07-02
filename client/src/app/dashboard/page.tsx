@@ -99,6 +99,17 @@ interface DisputesData {
   disputes: Dispute[];
 }
 
+interface SupervisorIssue {
+  id: string;
+  userId: string;
+  fullName: string;
+  role: string;
+  type: 'attendance' | 'dispute' | 'leave';
+  reason?: string;
+  date?: string;
+  createdAt: string;
+}
+
 // ── Helpers ──
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -316,14 +327,9 @@ export default function DashboardPage() {
                 <Shield className="h-5 w-5 text-sph-blue" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">
-                    Habari, {firstName}
-                  </h1>
-                  <Badge variant="outline" className="text-[10px]">
-                    SUPER_ADMIN
-                  </Badge>
-                </div>
+                <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">
+                  Habari, {firstName}
+                </h1>
                 <p className="text-sm text-muted">You have full access to manage SPH Attendance.</p>
               </div>
             </div>

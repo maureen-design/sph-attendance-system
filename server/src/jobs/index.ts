@@ -96,7 +96,7 @@ async function cutoffChecker(): Promise<void> {
             const users = (await prisma.user.findMany({
               where: {
                 departmentId: dept.id,
-                isActive: true,
+                status: 'ACTIVE',
                 role: schedule.userType as Role,
               },
               select: { id: true, fullName: true, departmentId: true },
@@ -179,7 +179,7 @@ async function checkoutReminder(): Promise<void> {
       const todayDate = getTodayDate(deptTimezone);
 
       const users = (await prisma.user.findMany({
-        where: { departmentId: dept.id, isActive: true },
+        where: { departmentId: dept.id, status: 'ACTIVE' },
         select: { id: true, fullName: true, departmentId: true },
       })) as UserRow[];
 

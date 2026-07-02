@@ -233,7 +233,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col px-5 pt-6 pb-6">
           <Link href="/">
             <Image
-              src="/logo/swahilipot.png"
+              src="/images/logo/swahilipot.png"
               alt="Swahilipot Hub"
               width={190}
               height={32}
@@ -316,7 +316,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <header className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3 lg:hidden">
           <Link href="/">
             <Image
-              src="/logo/swahilipot.png"
+              src="/images/logo/swahilipot.png"
               alt="Swahilipot Hub"
               width={142}
               height={24}
