@@ -14,6 +14,7 @@ import {
   UserX,
   MessageSquare,
   ArrowRight,
+  CheckCircle,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { get } from '@/lib/api';
@@ -110,6 +111,17 @@ interface SupervisorIssue {
   createdAt: string;
 }
 
+interface EscalatedIssue {
+  id: string;
+  userId: string;
+  fullName: string;
+  role: string;
+  type: 'dispute' | 'leave';
+  reason?: string;
+  date?: string;
+  createdAt: string;
+}
+
 // ── Helpers ──
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -191,6 +203,8 @@ export default function DashboardPage() {
   const [liveData, setLiveData] = useState<LiveData | null>(null);
   const [deptData, setDeptData] = useState<SupervisorData | null>(null);
   const [disputes, setDisputes] = useState<DisputesData | null>(null);
+  const [reviewItems, setReviewItems] = useState<SupervisorIssue[] | null>(null);
+  const [escalatedItems, setEscalatedItems] = useState<EscalatedIssue[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -210,15 +224,17 @@ export default function DashboardPage() {
     setError(null);
     try {
       if (isAdmin) {
-        // SUPER_ADMIN: org-wide stats + disputes
-        const [live, annData, disp] = await Promise.all([
+        // SUPER_ADMIN: org-wide stats + review/escalated items
+        const [live, annData, reviewData, escalatedData] = await Promise.all([
           get<LiveData>('/dashboard/supervisor/live'),
           get<AnnouncementsData>('/announcements').catch(() => null),
-          get<DisputesData>('/disputes?status=OPEN'),
+          get<{ issues: SupervisorIssue[] }>('/dashboard/admin/review').catch(() => null),
+          get<{ issues: EscalatedIssue[] }>('/dashboard/admin/escalated').catch(() => null),
         ]);
         setLiveData(live);
         setAnnouncements(annData);
-        setDisputes(disp);
+        setReviewItems(reviewData?.issues ?? null);
+        setEscalatedItems(escalatedData?.issues ?? null);
       } else if (isSupervisor) {
         // DEPARTMENT_SUPERVISOR: personal dashboard + dept stats
         const [dashData, dept, annData, disp] = await Promise.all([
@@ -396,20 +412,22 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Admin CTA */}
+        {/* Overview Link */}
         {!isLoading && (
           <Link
-            href="/dashboard/admin"
+            href="/dashboard/overview"
             className="flex items-center justify-between rounded-2xl surface p-5 transition-colors hover:bg-[var(--surface-elevated)]"
           >
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sph-green/10">
-                <Shield className="h-5 w-5 text-sph-green" />
+                <Building2 className="h-5 w-5 text-sph-green" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-[var(--text-primary)]">Admin Dashboard</p>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                  Department Overview
+                </p>
                 <p className="text-xs text-muted">
-                  Full org management, users, departments, and settings
+                  Full department attendance breakdown and records
                 </p>
               </div>
             </div>
@@ -417,69 +435,141 @@ export default function DashboardPage() {
           </Link>
         )}
 
-        {/* Pending Reviews + Department Breakdown */}
+        {/* Needs Your Review + Escalated */}
         {!isLoading && (
           <div className="grid gap-4 lg:grid-cols-2">
-            {/* Pending Reviews */}
+            {/* Needs Your Review */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" /> Pending Reviews
+                  <MessageSquare className="h-4 w-4 text-sph-amber" /> Needs Your Review
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {disputes && disputes.disputes.length > 0 ? (
+                {reviewItems && reviewItems.length > 0 ? (
                   <div className="space-y-3">
-                    {disputes.disputes.slice(0, 3).map((d) => (
-                      <div key={d.id} className="rounded-lg border border-[var(--border)] p-3">
-                        <p className="text-sm font-medium text-[var(--text-primary)]">
-                          {d.user.fullName}
-                        </p>
-                        <p className="mt-1 text-xs text-muted line-clamp-2">{d.reason}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-2 py-6">
-                    <UserCheck className="h-6 w-6 text-sph-green" />
-                    <p className="text-sm text-muted">No pending reviews</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Department Snapshot */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4" /> Departments Today
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                {liveData && liveData.departments.length > 0 ? (
-                  <div className="divide-y divide-[var(--border)]">
-                    {liveData.departments.slice(0, 5).map((dept) => (
-                      <div key={dept.id} className="flex items-center justify-between px-4 py-3">
-                        <span className="text-sm text-[var(--text-primary)]">{dept.name}</span>
-                        <div className="flex items-center gap-3 text-xs text-muted">
-                          <span className="text-sph-green">{dept.checkedIn} in</span>
-                          {dept.late > 0 && (
-                            <span className="text-sph-amber">{dept.late} late</span>
-                          )}
-                          {dept.unresolved > 0 && (
-                            <span className="text-sph-red">{dept.unresolved} ?</span>
+                    {reviewItems.slice(0, 10).map((item) => (
+                      <div key={item.id} className="rounded-lg border border-[var(--border)] p-3">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-[var(--text-primary)]">
+                            {item.fullName}
+                          </p>
+                          <span
+                            className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                              item.role === 'DEPARTMENT_SUPERVISOR'
+                                ? 'bg-sph-blue/10 text-sph-blue'
+                                : item.role === 'STAFF'
+                                  ? 'bg-sph-green/10 text-sph-green'
+                                  : item.role === 'MEMBER'
+                                    ? 'bg-sph-amber/10 text-sph-amber'
+                                    : 'bg-[var(--surface-elevated)] text-muted'
+                            }`}
+                          >
+                            {item.role === 'DEPARTMENT_SUPERVISOR' ? 'Supervisor' : item.role}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span
+                            className={`text-[10px] font-medium uppercase ${
+                              item.type === 'attendance'
+                                ? 'text-sph-amber'
+                                : item.type === 'dispute'
+                                  ? 'text-sph-red'
+                                  : 'text-sph-blue'
+                            }`}
+                          >
+                            {item.type === 'attendance'
+                              ? 'Attendance'
+                              : item.type === 'dispute'
+                                ? 'Dispute'
+                                : 'Leave'}
+                          </span>
+                          {item.reason && (
+                            <span className="text-xs text-muted line-clamp-1">— {item.reason}</span>
                           )}
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="p-4 text-sm text-muted">No department data.</p>
+                  <div className="flex flex-col items-center gap-2 py-6">
+                    <UserCheck className="h-6 w-6 text-sph-green" />
+                    <p className="text-sm text-muted">No items need your review</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Escalated */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-sph-red" /> Escalated
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {escalatedItems && escalatedItems.length > 0 ? (
+                  <div className="space-y-3">
+                    {escalatedItems.slice(0, 10).map((item) => (
+                      <div
+                        key={item.id}
+                        className="rounded-lg border border-sph-red/20 bg-sph-red/5 p-3"
+                      >
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-[var(--text-primary)]">
+                            {item.fullName}
+                          </p>
+                          <span
+                            className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                              item.role === 'DEPARTMENT_SUPERVISOR'
+                                ? 'bg-sph-blue/10 text-sph-blue'
+                                : item.role === 'STAFF'
+                                  ? 'bg-sph-green/10 text-sph-green'
+                                  : item.role === 'MEMBER'
+                                    ? 'bg-sph-amber/10 text-sph-amber'
+                                    : 'bg-[var(--surface-elevated)] text-muted'
+                            }`}
+                          >
+                            {item.role === 'DEPARTMENT_SUPERVISOR' ? 'Supervisor' : item.role}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span
+                            className={`text-[10px] font-medium uppercase ${
+                              item.type === 'dispute' ? 'text-sph-red' : 'text-sph-blue'
+                            }`}
+                          >
+                            {item.type === 'dispute' ? 'Dispute' : 'Leave'}
+                          </span>
+                          {item.reason && (
+                            <span className="text-xs text-muted line-clamp-1">— {item.reason}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 py-6">
+                    <CheckCircle className="h-6 w-6 text-sph-green" />
+                    <p className="text-sm text-muted">All clear — nothing escalated</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
           </div>
         )}
+
+        {/* Calm empty state when both sections are empty */}
+        {!isLoading &&
+          (!reviewItems || reviewItems.length === 0) &&
+          (!escalatedItems || escalatedItems.length === 0) && (
+            <div className="flex flex-col items-center gap-3 rounded-2xl surface py-10 text-center">
+              <CheckCircle className="h-10 w-10 text-sph-green" />
+              <p className="text-sm font-medium text-[var(--text-primary)]">
+                All clear — nothing needs your attention today
+              </p>
+            </div>
+          )}
 
         {/* Announcements */}
         {!isLoading && (

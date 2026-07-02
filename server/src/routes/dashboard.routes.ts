@@ -7,6 +7,7 @@ import {
   getSupervisorSummary,
   getAdminReviewItems,
   getEscalatedItems,
+  getOverviewLogs,
 } from '../controllers/dashboard.controller.js';
 import { authenticateToken, requireRole } from '../middleware/index.js';
 
@@ -43,16 +44,10 @@ router.get(
 );
 
 // Admin-specific endpoints - restricted to SUPER_ADMIN
-router.get(
-  '/admin/review',
-  requireRole('SUPER_ADMIN'),
-  getAdminReviewItems,
-);
+router.get('/admin/review', requireRole('SUPER_ADMIN'), getAdminReviewItems);
 
-router.get(
-  '/admin/escalated',
-  requireRole('SUPER_ADMIN'),
-  getEscalatedItems,
-);
+router.get('/admin/escalated', requireRole('SUPER_ADMIN'), getEscalatedItems);
+
+router.get('/admin/logs', requireRole('SUPER_ADMIN'), getOverviewLogs);
 
 export default router;

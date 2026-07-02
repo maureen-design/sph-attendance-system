@@ -1,5 +1,13 @@
-﻿import { Role, type AttendanceStatus } from '@prisma/client';
-import { format, subDays, eachDayOfInterval, isWeekend, startOfWeek, endOfWeek, subHours } from 'date-fns';
+﻿import { Role, Prisma, type AttendanceStatus } from '@prisma/client';
+import {
+  format,
+  subDays,
+  eachDayOfInterval,
+  isWeekend,
+  startOfWeek,
+  endOfWeek,
+  subHours,
+} from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import type { Request, Response, NextFunction } from 'express';
 import prisma from '../db/prisma.js';
@@ -803,7 +811,9 @@ export async function getAdminReviewItems(
       }
 
       // Disputes
-      const userDisputes = supervisorDisputes.filter((d: { userId: string }) => d.userId === supervisor.id);
+      const userDisputes = supervisorDisputes.filter(
+        (d: { userId: string }) => d.userId === supervisor.id,
+      );
       for (const dispute of userDisputes) {
         issues.push({
           id: dispute.id,
@@ -817,7 +827,9 @@ export async function getAdminReviewItems(
       }
 
       // Leave requests
-      const userLeaves = supervisorLeaves.filter((l: { userId: string }) => l.userId === supervisor.id);
+      const userLeaves = supervisorLeaves.filter(
+        (l: { userId: string }) => l.userId === supervisor.id,
+      );
       for (const leave of userLeaves) {
         issues.push({
           id: leave.id,
@@ -928,6 +940,67 @@ export async function getEscalatedItems(
     }
 
     respond.success(res, { issues });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getOverviewLogs(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userId = req.user!.id;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true },
+    });
+    if (!user) return respond.error(res, 'User not found', 404);
+
+    const orgId = user.organizationId;
+    const { startDate, endDate, departmentId, status, cohortId, search } = req.query as Record<
+      string,
+      string | undefined
+    >;
+
+    const start = startDate ? new Date(startDate) : subDays(new Date(), 6);
+    const end = endDate ? new Date(endDate) : new Date();
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+
+    const where: Prisma.AttendanceLogWhereInput = {
+      organizationId: orgId,
+      date: { gte: start, lte: end },
+    };
+    if (departmentId) where.departmentId = departmentId;
+    if (status) where.status = status as AttendanceStatus;
+    if (cohortId || search) {
+      const userWhere: Prisma.UserWhereInput = {};
+      if (cohortId) userWhere.cohortId = cohortId;
+      if (search) userWhere.fullName = { contains: search, mode: 'insensitive' };
+      where.user = userWhere;
+    }
+
+    const logs = await prisma.attendanceLog.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            role: true,
+            cohort: { select: { id: true, name: true } },
+          },
+        },
+        department: {
+          select: {
+            id: true,
+            name: true,
+            supervisor: { select: { id: true, fullName: true } },
+          },
+        },
+      },
+      orderBy: [{ date: 'desc' }, { user: { fullName: 'asc' } }],
+    });
+
+    respond.success(res, { logs });
   } catch (err) {
     next(err);
   }

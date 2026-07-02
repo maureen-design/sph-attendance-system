@@ -31,6 +31,7 @@ interface LoginResponse {
 
 interface RefreshResponse {
   accessToken: string;
+  user: User;
 }
 
 // ── Context ──
@@ -56,18 +57,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await post<RefreshResponse>('/auth/refresh', { refreshToken });
         localStorage.setItem('accessToken', data.accessToken);
 
-        // Decode user from the new access token
-        const tokenParts = data.accessToken.split('.');
-        const payload = JSON.parse(atob(tokenParts[1])) as User;
-        setUser({
-          id: payload.id,
-          fullName: payload.fullName ?? '',
-          email: payload.email ?? '',
-          role: payload.role,
-          organizationId: payload.organizationId,
-          departmentId: payload.departmentId ?? null,
-          status: payload.status ?? undefined,
-        });
+        // Use user info returned by the server (JWT only has id/role/orgId)
+        setUser(data.user);
       } catch {
         clearTokens();
       } finally {

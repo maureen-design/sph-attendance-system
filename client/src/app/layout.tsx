@@ -14,8 +14,8 @@ export const metadata: Metadata = {
   description: 'One tap check-in. For everyone at SPH.',
   manifest: '/manifest.json',
   icons: {
-    icon: '/logo/swahilipot.png',
-    apple: '/logo/swahilipot.png',
+    icon: '/images/logo/swahilipot.png',
+    apple: '/images/logo/swahilipot.png',
   },
   openGraph: {
     title: 'SPH Attendance — Swahilipot Hub',

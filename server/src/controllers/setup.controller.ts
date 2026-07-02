@@ -51,7 +51,8 @@ export async function createOrganization(
         },
       });
     } else {
-      const shortName = name!.length > 10 ? name!.substring(0, 10).toUpperCase() : name!.toUpperCase();
+      const shortName =
+        name!.length > 10 ? name!.substring(0, 10).toUpperCase() : name!.toUpperCase();
       const user = await prisma.user.findUnique({
         where: { id: req.user!.id },
         select: { email: true },

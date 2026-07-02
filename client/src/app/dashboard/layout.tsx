@@ -60,11 +60,11 @@ function NavItem({
     <Link
       href={href}
       onClick={onClick}
-      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-100 ${
         active
-          ? 'border-l-2 border-sph-green bg-sph-green/10 text-sph-green'
+          ? 'border-l-[3px] border-sph-green bg-sph-green/10 font-semibold text-sph-green hover:bg-sph-green/[0.15]'
           : 'text-secondary hover:bg-[var(--surface-elevated)] hover:text-[var(--text-primary)]'
-      }`}
+      } active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sph-green/50 focus-visible:ring-offset-1`}
     >
       <Icon className="h-4 w-4 shrink-0" />
       <span>{label}</span>
@@ -89,9 +89,9 @@ function MobileNavItem({
     <Link
       href={href}
       onClick={onClick}
-      className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-colors ${
-        active ? 'text-sph-green' : 'text-secondary'
-      }`}
+      className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-all duration-100 ${
+        active ? 'text-sph-green' : 'text-secondary hover:text-[var(--text-primary)]'
+      } active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sph-green/50`}
     >
       <Icon className="h-5 w-5" />
       <span>{label}</span>
@@ -169,6 +169,12 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const adminNavItems = isAdmin
     ? [
+        {
+          href: '/dashboard/overview',
+          icon: LayoutDashboard,
+          label: 'Overview',
+          match: '/dashboard/overview',
+        },
         { href: '/dashboard/users', icon: Users, label: 'Users', match: '/dashboard/users' },
         {
           href: '/dashboard/departments',
@@ -206,7 +212,15 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const mobileNavItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Home', match: '/dashboard' },
     ...(isAdmin
-      ? [{ href: '/dashboard/admin', icon: Shield, label: 'Admin', match: '/dashboard/admin' }]
+      ? [
+          { href: '/dashboard/admin', icon: Shield, label: 'Admin', match: '/dashboard/admin' },
+          {
+            href: '/dashboard/overview',
+            icon: LayoutDashboard,
+            label: 'Overview',
+            match: '/dashboard/overview',
+          },
+        ]
       : []),
     ...(isSupervisor
       ? [
@@ -237,7 +251,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               alt="Swahilipot Hub"
               width={190}
               height={32}
-              className="h-8 w-auto cursor-pointer transition-opacity hover:opacity-80"
+              priority
+              className="h-auto w-auto cursor-pointer transition-opacity hover:opacity-80"
             />
           </Link>
         </div>
@@ -320,7 +335,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               alt="Swahilipot Hub"
               width={142}
               height={24}
-              className="h-6 w-auto cursor-pointer transition-opacity hover:opacity-80"
+              priority
+              className="h-auto w-auto cursor-pointer transition-opacity hover:opacity-80"
             />
           </Link>
           <span className="text-xs text-muted">{firstName}</span>
