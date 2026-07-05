@@ -1,13 +1,12 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, Lock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { post, ApiError } from '@/lib/api';
 
 function ResetForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const userId = searchParams.get('userId');
@@ -17,6 +16,7 @@ function ResetForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
+  const [errorType, setErrorType] = useState<'generic' | 'invalid' | 'expired'>('generic');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -28,17 +28,10 @@ function ResetForm() {
     confirmPassword.length >= 8 &&
     !passwordsMismatch;
 
-  // Redirect to login after success
-  useEffect(() => {
-    if (isSuccess) {
-      const timer = setTimeout(() => router.push('/login'), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [isSuccess, router]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setErrorType('generic');
 
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
@@ -57,9 +50,18 @@ function ResetForm() {
       setIsSuccess(true);
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message);
+        const msg = err.message;
+        setError(msg);
+        if (msg === 'Reset link has expired') {
+          setErrorType('expired');
+        } else if (msg.toLowerCase().includes('invalid')) {
+          setErrorType('invalid');
+        } else {
+          setErrorType('generic');
+        }
       } else {
         setError('Something went wrong. Please try again.');
+        setErrorType('generic');
       }
     } finally {
       setIsLoading(false);
@@ -99,9 +101,14 @@ function ResetForm() {
           </div>
           <h2 className="mt-6 text-2xl font-bold text-[var(--text-primary)]">Password updated</h2>
           <p className="mt-2 text-sm text-secondary">
-            Your password has been reset. Redirecting to login...
+            Your password has been reset. Please log in with your new password.
           </p>
-          <div className="mt-6 h-5 w-5 animate-spin rounded-full border-2 border-sph-green border-t-transparent" />
+          <Link
+            href="/login"
+            className="mt-8 flex items-center gap-2 rounded-xl bg-sph-green px-6 py-3 font-semibold text-white transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-sph-green/25"
+          >
+            Go to Login
+          </Link>
         </div>
       </div>
     );
@@ -210,8 +217,28 @@ function ResetForm() {
               )}
             </button>
 
-            {/* Error */}
-            {error && (
+            {/* Error — invalid or expired link */}
+            {error && errorType !== 'generic' && (
+              <div className="rounded-xl border border-sph-red/30 bg-sph-red/10 px-4 py-3 text-sm text-sph-red">
+                <p className="font-medium">
+                  {errorType === 'expired' ? 'This link has expired.' : "This link isn't valid."}
+                </p>
+                <p className="mt-1 text-sph-red/80">
+                  {errorType === 'expired'
+                    ? 'Password reset links expire after 30 minutes for security. Please request a new one.'
+                    : 'It may have already been used or is incorrect. Please request a new one.'}
+                </p>
+                <Link
+                  href="/forgot-password"
+                  className="mt-3 inline-block text-sm font-medium text-sph-blue hover:underline"
+                >
+                  Request new link →
+                </Link>
+              </div>
+            )}
+
+            {/* Error — generic */}
+            {error && errorType === 'generic' && (
               <div className="rounded-xl border border-sph-red/30 bg-sph-red/10 px-4 py-3 text-sm text-sph-red">
                 {error}
               </div>

@@ -281,6 +281,73 @@ async function autoCloseCheckouts(): Promise<void> {
   }
 }
 
+// --- JOB 4: Auto-approve pending registrations (every 30 minutes) -----------
+
+async function autoApproveRegistrations(): Promise<void> {
+  try {
+    logJob('auto-approve', 'Running auto-approval check...');
+
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const pendingUsers = (await prisma.user.findMany({
+      where: {
+        status: 'PENDING_APPROVAL',
+        createdAt: { lt: cutoff },
+      },
+      select: {
+        id: true,
+        fullName: true,
+        organizationId: true,
+        email: true,
+        department: { select: { name: true } },
+      },
+    })) as {
+      id: string;
+      fullName: string;
+      organizationId: string;
+      email: string;
+      department: { name: string } | null;
+    }[];
+
+    let count = 0;
+    for (const user of pendingUsers) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { status: 'ACTIVE', approvedAt: new Date() },
+      });
+
+      // Notify the user
+      await prisma.notification.create({
+        data: {
+          userId: user.id,
+          title: 'Account Activated',
+          body: `Your account has been automatically activated. You can now check in.`,
+          type: 'APPROVAL_GRANTED',
+        },
+      });
+
+      // Audit log — no actor (system action)
+      await prisma.auditLog.create({
+        data: {
+          organizationId: user.organizationId,
+          actorId: user.id,
+          action: 'USER_AUTO_APPROVED',
+          tableName: 'User',
+          recordId: user.id,
+          ipAddress: null,
+          userAgent: null,
+        },
+      });
+
+      count++;
+    }
+
+    logJob('auto-approve', `Auto-approved ${count} pending registrations.`);
+  } catch (err) {
+    console.error(`[job:auto-approve] Error: ${(err as Error).message}`);
+  }
+}
+
 // --- Scheduler --------------------------------------------------------------
 
 export function startJobs(): void {
@@ -304,6 +371,11 @@ export function startJobs(): void {
     },
     { timezone: 'Africa/Nairobi' },
   );
+
+  // Auto-approve pending registrations - every 30 minutes
+  cron.schedule('*/30 * * * *', () => {
+    void autoApproveRegistrations();
+  });
 
   logJob('scheduler', 'All jobs scheduled.');
 }

@@ -18,7 +18,11 @@ function validateRegister(body: Record<string, unknown>): string[] {
   const errors: string[] = [];
   if (!body.fullName || typeof body.fullName !== 'string') errors.push('fullName is required');
   if (!body.email || typeof body.email !== 'string') errors.push('email is required');
-  if (!body.password || typeof body.password !== 'string') errors.push('password is required');
+  if (!body.password || typeof body.password !== 'string') {
+    errors.push('password is required');
+  } else if (body.password.length < 8) {
+    errors.push('password must be at least 8 characters');
+  }
   if (!body.inviteToken || typeof body.inviteToken !== 'string')
     errors.push('inviteToken is required');
   return errors;
@@ -158,7 +162,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
           data: {
             userId: invite.department.supervisorId,
             title: 'New Registration Pending Approval',
-            body: `${user.fullName} has registered for ${invite.department.name} and is awaiting your approval.`,
+            body: `${user.fullName} has registered for ${invite.department.name} and is awaiting your approval. Approvals expire after 24 hours.`,
             type: 'APPROVAL_PENDING',
           },
         });
@@ -559,6 +563,10 @@ export async function resetPassword(
 
     if (!userId || !token || !newPassword) {
       respond.error(res, 'userId, token, and newPassword are required', 400);
+      return;
+    }
+    if (newPassword.length < 8) {
+      respond.error(res, 'Password must be at least 8 characters', 400);
       return;
     }
 

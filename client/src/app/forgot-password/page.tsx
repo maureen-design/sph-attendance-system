@@ -45,13 +45,22 @@ export default function ForgotPasswordPage() {
           <p className="mt-2 text-sm text-secondary">
             If an account exists for {email}, we&apos;ve sent password reset instructions.
           </p>
-          <Link
-            href="/login"
-            className="mt-8 flex items-center gap-2 rounded-xl bg-sph-green px-6 py-3 font-semibold text-white transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-sph-green/25"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Login
-          </Link>
+          <div className="mt-8 flex flex-col items-center gap-3">
+            <Link
+              href="/login"
+              className="flex items-center gap-2 rounded-xl bg-sph-green px-6 py-3 font-semibold text-white transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-sph-green/25"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Login
+            </Link>
+            <button
+              type="button"
+              onClick={() => setIsSuccess(false)}
+              className="text-sm text-secondary transition-colors hover:text-[var(--text-primary)]"
+            >
+              Try a different email
+            </button>
+          </div>
         </div>
       </div>
     );
