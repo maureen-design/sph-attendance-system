@@ -91,6 +91,7 @@ model User {
   fullName       String
   email          String
   phone          String?
+  institution    String?
   role           Role
   organizationId String
   departmentId   String?

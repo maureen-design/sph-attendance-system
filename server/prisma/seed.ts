@@ -176,21 +176,36 @@ async function main() {
       email: 'hannah.att@sphattendance.com',
       dept: 0,
       cohort: cohort1.id,
+      institution: 'Technical University of Mombasa',
     },
-    { fullName: 'Ian Attachee', email: 'ian.att@sphattendance.com', dept: 0, cohort: cohort1.id },
+    {
+      fullName: 'Ian Attachee',
+      email: 'ian.att@sphattendance.com',
+      dept: 0,
+      cohort: cohort1.id,
+      institution: 'Technical University of Mombasa',
+    },
     {
       fullName: 'Julia Attachee',
       email: 'julia.att@sphattendance.com',
       dept: 2,
       cohort: cohort2.id,
+      institution: 'Pwani University',
     },
     {
       fullName: 'Kevin Attachee',
       email: 'kevin.att@sphattendance.com',
       dept: 3,
       cohort: cohort2.id,
+      institution: 'Pwani University',
     },
-    { fullName: 'Liam Attachee', email: 'liam.att@sphattendance.com', dept: 4, cohort: cohort1.id },
+    {
+      fullName: 'Liam Attachee',
+      email: 'liam.att@sphattendance.com',
+      dept: 4,
+      cohort: cohort1.id,
+      institution: 'Mombasa Polytechnic',
+    },
   ];
 
   const attachees = await Promise.all(
@@ -203,6 +218,7 @@ async function main() {
           organizationId: org.id,
           departmentId: departments[a.dept].id,
           cohortId: a.cohort,
+          institution: a.institution,
           passwordHash: defaultHash,
           status: 'ACTIVE',
         },

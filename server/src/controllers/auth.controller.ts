@@ -25,6 +25,9 @@ function validateRegister(body: Record<string, unknown>): string[] {
   }
   if (!body.inviteToken || typeof body.inviteToken !== 'string')
     errors.push('inviteToken is required');
+  // Institution is required for ATTACHEE registrations (only registration type via invite links)
+  if (!body.institution || typeof body.institution !== 'string' || !body.institution.trim())
+    errors.push('institution is required');
   return errors;
 }
 
@@ -47,12 +50,13 @@ export async function register(req: Request, res: Response, next: NextFunction):
       return;
     }
 
-    const { fullName, email, phone, password, inviteToken } = req.body as {
+    const { fullName, email, phone, password, inviteToken, institution } = req.body as {
       fullName: string;
       email: string;
       phone?: string;
       password: string;
       inviteToken: string;
+      institution?: string;
     };
 
     // 1) Find invite link with cohort
@@ -104,6 +108,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
         fullName,
         email,
         phone: phone ?? null,
+        institution: institution?.trim() ?? null,
         passwordHash,
         role: 'ATTACHEE',
         organizationId,
@@ -683,6 +688,80 @@ export async function verifyInvite(req: Request, res: Response, next: NextFuncti
       department: invite.department,
       cohort: invite.cohort,
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// --- POST /api/auth/change-password -----------------------------------------
+
+export async function changePassword(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { currentPassword, newPassword } = req.body as {
+      currentPassword?: string;
+      newPassword?: string;
+    };
+
+    if (!currentPassword || typeof currentPassword !== 'string') {
+      respond.error(res, 'currentPassword is required', 400);
+      return;
+    }
+    if (!newPassword || typeof newPassword !== 'string') {
+      respond.error(res, 'newPassword is required', 400);
+      return;
+    }
+    if (newPassword.length < 8) {
+      respond.error(res, 'Password must be at least 8 characters', 400);
+      return;
+    }
+
+    const userId = req.user!.id;
+
+    // 1) Fetch current user
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { passwordHash: true, organizationId: true },
+    });
+
+    if (!user) {
+      respond.error(res, 'User not found', 404);
+      return;
+    }
+
+    // 2) Verify current password
+    const valid = await comparePassword(currentPassword, user.passwordHash);
+    if (!valid) {
+      respond.error(res, 'Current password is incorrect', 400);
+      return;
+    }
+
+    // 3) Hash new password
+    const newHash = await hashPassword(newPassword);
+
+    // 4) Update password (do NOT revoke sessions)
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newHash },
+    });
+
+    // 5) Audit log
+    await prisma.auditLog.create({
+      data: {
+        organizationId: user.organizationId,
+        actorId: userId,
+        action: 'PASSWORD_CHANGED',
+        tableName: 'User',
+        recordId: userId,
+        ipAddress: req.ip ?? null,
+        userAgent: req.headers['user-agent'] ?? null,
+      },
+    });
+
+    respond.success(res, { message: 'Password changed successfully' });
   } catch (err) {
     next(err);
   }

@@ -396,3 +396,100 @@ export async function getUserAttendance(
     next(err);
   }
 }
+
+// --- ENDPOINT 7: GET /api/user/profile --------------------------------------
+
+export async function getProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.user!.id;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        institution: true,
+        role: true,
+        departmentId: true,
+        cohortId: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      respond.error(res, 'User not found', 404);
+      return;
+    }
+
+    // Resolve department and cohort names
+    const [department, cohort] = await Promise.all([
+      user.departmentId
+        ? prisma.department.findUnique({ where: { id: user.departmentId }, select: { name: true } })
+        : null,
+      user.cohortId
+        ? prisma.cohort.findUnique({ where: { id: user.cohortId }, select: { name: true } })
+        : null,
+    ]);
+
+    respond.success(res, {
+      ...user,
+      department: department ?? null,
+      cohort: cohort ?? null,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// --- ENDPOINT 8: PATCH /api/user/profile/phone ------------------------------
+
+export async function updatePhone(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.user!.id;
+    const { phone } = req.body as { phone?: string };
+
+    if (phone === undefined || phone === null) {
+      respond.error(res, 'phone is required', 400);
+      return;
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { phone },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        role: true,
+        departmentId: true,
+        cohortId: true,
+        institution: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    // Resolve department and cohort names (same shape as getProfile)
+    const [department, cohort] = await Promise.all([
+      updated.departmentId
+        ? prisma.department.findUnique({
+            where: { id: updated.departmentId },
+            select: { name: true },
+          })
+        : null,
+      updated.cohortId
+        ? prisma.cohort.findUnique({ where: { id: updated.cohortId }, select: { name: true } })
+        : null,
+    ]);
+
+    respond.success(res, {
+      user: { ...updated, department: department ?? null, cohort: cohort ?? null },
+    });
+  } catch (err) {
+    next(err);
+  }
+}

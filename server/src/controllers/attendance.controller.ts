@@ -221,6 +221,50 @@ export async function checkOut(req: Request, res: Response, next: NextFunction):
   }
 }
 
+// --- GET /api/attendance/forgotten-checkout ---------------------------------
+
+export async function getForgottenCheckout(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const userId = req.user!.id;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { department: true, organization: true },
+    });
+    if (!user || !user.department) {
+      respond.success(res, { forgotten: null, shiftEnd: null });
+      return;
+    }
+
+    const orgTimezone = user.organization.timezone;
+    const todayStr = getTodayInTimezone(orgTimezone);
+    const todayDate = new Date(todayStr + 'T00:00:00.000Z');
+
+    // Find the most recent log with no checkout before today
+    const forgotten = await prisma.attendanceLog.findFirst({
+      where: { userId, checkOutTime: null, date: { lt: todayDate } },
+      orderBy: { date: 'desc' },
+    });
+
+    respond.success(res, {
+      forgotten: forgotten
+        ? {
+            id: forgotten.id,
+            date: format(forgotten.date, 'yyyy-MM-dd'),
+            checkInTime: forgotten.checkInTime,
+          }
+        : null,
+      shiftEnd: user.department.shiftEnd,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // --- POST /api/attendance/checkout/self-report ------------------------------
 
 export async function selfReportCheckOut(

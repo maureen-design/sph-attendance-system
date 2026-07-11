@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   checkIn,
   checkOut,
+  getForgottenCheckout,
   selfReportCheckOut,
   getToday,
   submitExcuse,
@@ -16,6 +17,7 @@ router.use(authenticateToken);
 
 router.post('/check-in', checkIn);
 router.post('/check-out', checkOut);
+router.get('/forgotten-checkout', getForgottenCheckout);
 router.post('/checkout/self-report', selfReportCheckOut);
 router.get('/today', getToday);
 router.post('/excuse', submitExcuse);

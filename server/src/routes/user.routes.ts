@@ -6,12 +6,18 @@ import {
   deactivateUser,
   reactivateUser,
   getUserAttendance,
+  getProfile,
+  updatePhone,
 } from '../controllers/user.controller.js';
 import { authenticateToken, requireRole } from '../middleware/index.js';
 
 const router = Router();
 
 router.use(authenticateToken);
+
+// Own profile — must come BEFORE /:id wildcard
+router.get('/profile', getProfile);
+router.patch('/profile/phone', updatePhone);
 
 // Any supervisor
 router.get('/', requireRole('SUPER_ADMIN', 'DEPARTMENT_SUPERVISOR'), getUsers);
