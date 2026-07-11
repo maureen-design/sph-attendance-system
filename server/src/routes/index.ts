@@ -10,6 +10,7 @@ import worklogRoutes from './worklog.routes.js';
 import userRoutes from './user.routes.js';
 import disputeRoutes from './dispute.routes.js';
 import approvalRoutes from './approval.routes.js';
+import inviteRoutes from './invite.routes.js';
 
 const router = Router();
 
@@ -32,5 +33,6 @@ router.use('/worklogs', worklogRoutes);
 router.use('/users', userRoutes);
 router.use('/disputes', disputeRoutes);
 router.use('/approvals', approvalRoutes);
+router.use('/invites', inviteRoutes);
 
 export default router;
