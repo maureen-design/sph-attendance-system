@@ -179,7 +179,11 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     setError('');
     setIsSubmitting(true);
     try {
-      const response = await post('/setup/cohorts', {
+      const response = await post<{
+        cohorts: Array<{
+          inviteLinks: Array<{ id: string; token: string; departmentId?: string }>;
+        }>;
+      }>('/setup/cohorts', {
         cohorts: cohorts.map((c) => ({
           name: c.name,
           startDate: c.startDate,
@@ -699,7 +703,9 @@ function Step4Invites({
 
   const fetchInviteLinks = async () => {
     try {
-      const response = await get('/setup/invite-links');
+      const response = await get<{
+        inviteLinks: Array<{ id: string; token: string; departmentId?: string }>;
+      }>('/setup/invite-links');
       setInviteLinks(response.inviteLinks || []);
     } catch (err) {
       console.error('Failed to fetch invite links:', err);

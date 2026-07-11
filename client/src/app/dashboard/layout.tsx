@@ -13,9 +13,11 @@ import {
   Link as LinkIcon,
   ClipboardList,
   Settings,
+  User,
   LogOut,
   Sun,
   Moon,
+  FileText,
 } from 'lucide-react';
 import { AuthGuard } from '@/components/guards/AuthGuard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -145,6 +147,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const primaryNavItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Home', match: '/dashboard' },
+    { href: '/dashboard/profile', icon: User, label: 'Profile', match: '/dashboard/profile' },
+    ...(role === 'ATTACHEE'
+      ? [
+          {
+            href: '/dashboard/worklog',
+            icon: FileText,
+            label: 'Work Log',
+            match: '/dashboard/worklog',
+          },
+        ]
+      : []),
     ...(isAdmin
       ? [
           {
@@ -211,6 +224,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   const mobileNavItems = [
     { href: '/dashboard', icon: LayoutDashboard, label: 'Home', match: '/dashboard' },
+    { href: '/dashboard/profile', icon: User, label: 'Profile', match: '/dashboard/profile' },
+    ...(role === 'ATTACHEE'
+      ? [
+          {
+            href: '/dashboard/worklog',
+            icon: FileText,
+            label: 'Work Log',
+            match: '/dashboard/worklog',
+          },
+        ]
+      : []),
     ...(isAdmin
       ? [
           { href: '/dashboard/admin', icon: Shield, label: 'Admin', match: '/dashboard/admin' },

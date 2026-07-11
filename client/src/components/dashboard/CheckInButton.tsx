@@ -97,7 +97,7 @@ function OrbButton({
   const handlePointerUp = useCallback(() => setIsPressed(false), []);
   const handlePointerLeave = useCallback(() => setIsPressed(false), []);
 
-  const orbStyle: React.CSSProperties = {
+  const orbStyle = {
     width: ORB_SIZE,
     height: ORB_SIZE,
     borderRadius: ORB_RADIUS,
@@ -124,7 +124,7 @@ function OrbButton({
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerLeave}
       disabled={isLoading}
-      style={orbStyle}
+      style={orbStyle as React.CSSProperties}
       onMouseEnter={(e) => {
         const el = e.currentTarget;
         el.style.animationPlayState = 'paused';

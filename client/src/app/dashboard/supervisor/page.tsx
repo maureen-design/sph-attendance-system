@@ -68,7 +68,7 @@ interface AttendanceLog {
   overriddenBy: string | null;
 }
 
-interface Record {
+interface AttendanceRecord {
   user: UserInfo;
   log: AttendanceLog | null;
   status: AttendanceStatus;
@@ -80,7 +80,7 @@ interface SupervisorData {
   late: number;
   absent: number;
   unresolved: number;
-  records: Record[];
+  records: AttendanceRecord[];
 }
 
 interface LiveDept {
@@ -681,9 +681,9 @@ export default function SupervisorDashboardPage() {
           </div>
 
           <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
-            </DialogClose>
+            <Button variant="outline" render={<DialogClose />}>
+              Cancel
+            </Button>
             <Button variant="destructive" disabled={rejecting} onClick={handleReject}>
               {rejecting ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

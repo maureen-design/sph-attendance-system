@@ -452,7 +452,7 @@ export async function getPersonalDashboard(
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        department: { select: { id: true, name: true } },
+        department: { select: { id: true, name: true, shiftStart: true, shiftEnd: true } },
         cohort: { select: { id: true, name: true, startDate: true } },
       },
     });
@@ -460,6 +460,20 @@ export async function getPersonalDashboard(
     if (!user) {
       respond.error(res, 'User not found', 404);
       return;
+    }
+
+    // Query schedule for grace period
+    let gracePeriodMins = 15;
+    if (user.department) {
+      const schedule = await prisma.schedule.findUnique({
+        where: {
+          departmentId_userType: {
+            departmentId: user.department.id,
+            userType: user.role as Role,
+          },
+        },
+      });
+      if (schedule) gracePeriodMins = schedule.gracePeriodMins;
     }
 
     const org = await prisma.organization.findUnique({
@@ -490,9 +504,11 @@ export async function getPersonalDashboard(
     })) as AnyLog[];
 
     // Calculate streak: consecutive ON_TIME/EARLY going back, skipping weekends/holidays
+    // Start from yesterday when today has no check-in yet
     const logByDate = new Map(recentLogs.map((l: AnyLog) => [format(l.date, 'yyyy-MM-dd'), l]));
     let streak = 0;
-    let cursor = todayDate;
+    const hasTodayLog = logByDate.has(format(todayDate, 'yyyy-MM-dd'));
+    let cursor = hasTodayLog ? todayDate : subDays(todayDate, 1);
     let counting = true;
 
     while (counting) {
@@ -510,21 +526,32 @@ export async function getPersonalDashboard(
       }
     }
 
-    // Calculate attendance score
-    const scoreStartDate =
-      user.role === Role.ATTACHEE && user.cohort ? user.cohort.startDate : subDays(new Date(), 30);
+    // Calculate attendance score (60-day rolling window, excluding today)
+    // Window start is max of: 60-day cap, cohort start, and user creation date
+    const userCreatedAt = user.createdAt;
+    const rawStartDate =
+      user.role === Role.ATTACHEE && user.cohort ? user.cohort.startDate : subDays(todayDate, 30);
+    const candidateDates = [subDays(todayDate, 60), rawStartDate, userCreatedAt].filter(
+      Boolean,
+    ) as Date[];
+    const scoreStartDate = candidateDates.reduce((latest, d) => (d > latest ? d : latest));
+    const scoreEndDate = subDays(todayDate, 1); // exclude today — hasn't happened yet
 
     const scoreLogs = (await prisma.attendanceLog.findMany({
-      where: { userId, date: { gte: scoreStartDate, lte: todayDate } },
+      where: { userId, date: { gte: scoreStartDate, lte: scoreEndDate } },
     })) as AnyLog[];
 
-    const scoreDays = eachDayOfInterval({ start: scoreStartDate, end: todayDate }).filter(
+    const scoreDays = eachDayOfInterval({ start: scoreStartDate, end: scoreEndDate }).filter(
       (d: Date) => !isWeekendDate(d) && !holidaySet.has(format(d, 'yyyy-MM-dd')),
     );
 
     const onTimeDays = scoreLogs.filter(
       (l: AnyLog) => l.status === 'ON_TIME' || l.status === 'EARLY',
     ).length;
+    const lateDays = scoreLogs.filter(
+      (l: AnyLog) => l.status === 'LATE' || l.status === 'LEFT_EARLY',
+    ).length;
+    const absentDays = scoreDays.length - scoreLogs.length;
     const attendanceScore =
       scoreDays.length > 0 ? Math.round((onTimeDays / scoreDays.length) * 100) : 100;
 
@@ -549,13 +576,36 @@ export async function getPersonalDashboard(
         fullName: user.fullName,
         role: user.role,
         status: user.status,
-        department: user.department ? { id: user.department.id, name: user.department.name } : null,
+        department: user.department
+          ? {
+              id: user.department.id,
+              name: user.department.name,
+              shiftStart: user.department.shiftStart,
+              shiftEnd: user.department.shiftEnd,
+            }
+          : null,
+        cohort: user.cohort ? { id: user.cohort.id, name: user.cohort.name } : null,
       },
       today: today ?? null,
       streak,
       attendanceScore,
+      attendanceBreakdown: {
+        present: onTimeDays,
+        late: lateDays,
+        absent: absentDays,
+        total: scoreDays.length,
+      },
       thisWeek,
-      recentHistory,
+      recentHistory: recentHistory.map((log: AnyLog) => ({
+        ...log,
+        hours:
+          log.checkInTime && log.checkOutTime
+            ? Math.round(
+                ((log.checkOutTime.getTime() - log.checkInTime.getTime()) / 3600000) * 100,
+              ) / 100
+            : null,
+      })),
+      gracePeriodMins,
     });
   } catch (err) {
     next(err);
@@ -794,7 +844,7 @@ export async function getAdminReviewItems(
     }> = [];
 
     for (const supervisor of supervisors) {
-      const attendanceStatus = attendanceMap.get(supervisor.id) || null;
+      const attendanceStatus = (attendanceMap.get(supervisor.id) ?? null) as string | null;
 
       // Attendance issues: Late, Unresolved, or Absent (no record)
       if (!attendanceStatus || attendanceStatus === 'LATE' || attendanceStatus === 'UNRESOLVED') {

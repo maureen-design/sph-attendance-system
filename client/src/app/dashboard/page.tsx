@@ -20,12 +20,16 @@ import { useAuth } from '@/context/AuthContext';
 import { get } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardAction } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckInButton, type CheckInPhase } from '@/components/dashboard/CheckInButton';
-import { WeekStrip, type WeekDay } from '@/components/dashboard/WeekStrip';
 import { ScoreRing } from '@/components/dashboard/ScoreRing';
 import { AnnouncementCard } from '@/components/dashboard/AnnouncementCard';
+import { AttacheeHero, type HeroPhase } from '@/components/dashboard/AttacheeHero';
+import { NeedsAttention } from '@/components/dashboard/NeedsAttention';
+import { PortfolioMetrics } from '@/components/dashboard/PortfolioMetrics';
+import { TodayProgress } from '@/components/dashboard/TodayProgress';
+import { RecentAttendanceTable } from '@/components/dashboard/RecentAttendanceTable';
 
 // ── Types matching backend response shapes ──
 
@@ -35,7 +39,10 @@ interface BackendAttendanceLog {
   date: string;
   checkInTime: string | null;
   checkOutTime: string | null;
+  checkInMethod: string | null;
+  checkOutMethod: string | null;
   status: string;
+  hours: number | null;
 }
 
 interface DashboardData {
@@ -43,13 +50,21 @@ interface DashboardData {
     fullName: string;
     role: string;
     status: string;
-    department: { id: string; name: string } | null;
+    department: {
+      id: string;
+      name: string;
+      shiftStart?: string;
+      shiftEnd?: string;
+    } | null;
+    cohort: { id: string; name: string } | null;
   };
   today: BackendAttendanceLog | null;
   streak: number;
   attendanceScore: number;
+  attendanceBreakdown?: { present: number; late: number; absent: number; total: number };
   thisWeek: BackendAttendanceLog[];
   recentHistory: BackendAttendanceLog[];
+  gracePeriodMins?: number;
 }
 
 interface AnnouncementsData {
@@ -124,8 +139,6 @@ interface EscalatedIssue {
 
 // ── Helpers ──
 
-const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
 function formatTime(isoStr: string | null): string {
   if (!isoStr) return '--:--';
   return new Date(isoStr).toLocaleTimeString('en-US', {
@@ -142,23 +155,12 @@ function statusBadgeClass(status: string | null): string {
   return 'bg-sph-green/20 text-sph-green';
 }
 
-function buildWeekDays(logs: BackendAttendanceLog[]): WeekDay[] {
-  const byDate = new Map(logs.map((l) => [l.date.split('T')[0], l]));
-  const todayStr = new Date().toISOString().split('T')[0];
-  const days: WeekDay[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - d.getDay() + 1 + i);
-    const dateStr = d.toISOString().split('T')[0];
-    const log = byDate.get(dateStr);
-    days.push({
-      day: DAY_NAMES[i],
-      date: dateStr,
-      status: log?.status ?? null,
-      isToday: dateStr === todayStr,
-    });
-  }
-  return days;
+function addMinutesToTime(time: string, mins: number): string {
+  const [h, m] = time.split(':').map(Number);
+  const total = h * 60 + m + mins;
+  const rh = Math.floor(total / 60) % 24;
+  const rm = total % 60;
+  return `${String(rh).padStart(2, '0')}:${String(rm).padStart(2, '0')}`;
 }
 
 function getPhaseFromLog(log: BackendAttendanceLog | null): CheckInPhase {
@@ -208,9 +210,13 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Attachee-specific
+  const [missingDays, setMissingDays] = useState<string[]>([]);
+  const [logbookCount, setLogbookCount] = useState(0);
+  const [hasWorkLog, setHasWorkLog] = useState(false);
+
   // Check-in state
   const [phase, setPhase] = useState<CheckInPhase>('idle');
-  const [weekExpanded, setWeekExpanded] = useState(false);
   const [checkInStatus, setCheckInStatus] = useState<string | null>(null);
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
   const [checkOutTime, setCheckOutTime] = useState<string | null>(null);
@@ -218,6 +224,7 @@ export default function DashboardPage() {
   const isAdmin = role === 'SUPER_ADMIN';
   const isSupervisor = role === 'DEPARTMENT_SUPERVISOR';
   const isRegular = !isAdmin && !isSupervisor;
+  const isAttachee = role === 'ATTACHEE';
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -269,13 +276,27 @@ export default function DashboardPage() {
           setCheckInTime(log.checkInTime);
           setCheckOutTime(log.checkOutTime);
         }
+        if (isAttachee) {
+          get<{ logs: Array<{ date: string }>; missingDays: string[] }>('/worklogs/my')
+            .then((r) => {
+              setMissingDays(r.missingDays);
+              setLogbookCount(r.logs?.length ?? 0);
+              const today = new Date().toISOString().split('T')[0];
+              setHasWorkLog(r.logs?.some((l) => l.date?.startsWith(today)) ?? false);
+            })
+            .catch(() => {
+              setMissingDays([]);
+              setLogbookCount(0);
+              setHasWorkLog(false);
+            });
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard');
     } finally {
       setIsLoading(false);
     }
-  }, [isAdmin, isSupervisor]);
+  }, [isAdmin, isSupervisor, isAttachee]);
 
   useEffect(() => {
     fetchData();
@@ -296,8 +317,19 @@ export default function DashboardPage() {
 
   const firstName = data?.user?.fullName?.split(' ')[0] ?? authUser?.fullName?.split(' ')[0] ?? '';
 
-  const subtitle = data?.user?.department?.name ?? '';
-  const weekDays = data?.thisWeek ? buildWeekDays(data.thisWeek) : [];
+  const deptName = data?.user?.department?.name ?? '';
+  const cohortName = data?.user?.cohort?.name ?? '';
+  const shiftStart = data?.user?.department?.shiftStart ?? '';
+  const shiftEnd = data?.user?.department?.shiftEnd ?? '';
+  const gracePeriodMins = data?.gracePeriodMins ?? 15;
+
+  const greetingSubtitle = deptName
+    ? `${deptName} Department${cohortName ? ` · ${cohortName}` : ''} · ${new Date().toLocaleDateString('en-KE', { weekday: 'long', day: 'numeric', month: 'long' })}`
+    : '';
+
+  const shiftInfo = shiftStart
+    ? `Shift starts at ${shiftStart} · Grace window closes at ${addMinutesToTime(shiftStart, gracePeriodMins)}`
+    : '';
 
   // Computed live totals
   const liveTotals = liveData?.departments.reduce(
@@ -626,7 +658,8 @@ export default function DashboardPage() {
                   className={`h-2.5 w-2.5 rounded-full ${data ? 'bg-sph-green' : 'bg-sph-amber'}`}
                 />
               </div>
-              {subtitle && <p className="text-sm text-secondary">{subtitle}</p>}
+              {greetingSubtitle && <p className="text-sm text-secondary">{greetingSubtitle}</p>}
+              {shiftInfo && <p className="mt-0.5 text-xs text-muted">{shiftInfo}</p>}
             </>
           )}
         </div>
@@ -664,36 +697,27 @@ export default function DashboardPage() {
         )}
 
         {/* Check-In */}
-        <div className="rounded-2xl surface p-6">
-          {isLoading ? (
-            <CheckInButtonSkeleton />
-          ) : (
-            <CheckInButton
-              phase={phase}
-              status={checkInStatus}
-              checkInTime={checkInTime}
-              checkOutTime={checkOutTime}
-              onCheckedIn={handleCheckedIn}
-              onCheckedOut={handleCheckedOut}
-              role={role}
-              departmentName={subtitle}
-            />
-          )}
-        </div>
+        <Card>
+          <CardContent className="py-6">
+            {isLoading ? (
+              <CheckInButtonSkeleton />
+            ) : (
+              <CheckInButton
+                phase={phase}
+                status={checkInStatus}
+                checkInTime={checkInTime}
+                checkOutTime={checkOutTime}
+                onCheckedIn={handleCheckedIn}
+                onCheckedOut={handleCheckedOut}
+                role={role}
+                departmentName={deptName}
+              />
+            )}
+          </CardContent>
+        </Card>
 
-        {/* Week Strip */}
-        <div className="rounded-2xl surface p-5">
-          <h2 className="mb-4 text-sm font-semibold text-[var(--text-primary)]">This Week</h2>
-          {isLoading ? (
-            <div className="flex justify-between">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Skeleton key={i} className="h-8 w-8 rounded-full bg-[var(--surface-elevated)]" />
-              ))}
-            </div>
-          ) : (
-            <WeekStrip days={weekDays} />
-          )}
-        </div>
+        {/* Recent Attendance */}
+        {!isLoading && data?.recentHistory && <RecentAttendanceTable logs={data.recentHistory} />}
 
         {/* Metrics */}
         <div className="grid grid-cols-2 gap-4">
@@ -757,10 +781,98 @@ export default function DashboardPage() {
     );
   }
 
+  // ── ATTACHEE DASHBOARD (Redesigned) ──
+
+  const userStatus = data?.user?.status;
+
+  if (isAttachee && userStatus === 'ACTIVE') {
+    const heroPhase: HeroPhase =
+      phase === 'checked-out' ? 'checked-out' : phase === 'checked-in' ? 'checked-in' : 'idle';
+    return (
+      <div className="flex flex-col gap-6">
+        {/* Greeting */}
+        <div>
+          {isLoading ? (
+            <GreetingSkeleton />
+          ) : (
+            <>
+              <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">
+                {firstName ? `Habari, ${firstName}` : 'Habari'}
+              </h1>
+              {greetingSubtitle && <p className="text-sm text-secondary">{greetingSubtitle}</p>}
+              {shiftInfo && <p className="mt-0.5 text-xs text-muted">{shiftInfo}</p>}
+            </>
+          )}
+        </div>
+
+        {/* Hero Check-In Card */}
+        {isLoading ? (
+          <CheckInButtonSkeleton />
+        ) : (
+          <AttacheeHero
+            phase={heroPhase}
+            status={checkInStatus}
+            checkInTime={checkInTime}
+            checkOutTime={checkOutTime}
+            onCheckedIn={handleCheckedIn}
+            onCheckedOut={handleCheckedOut}
+            role={role}
+          />
+        )}
+
+        {/* Needs Attention */}
+        {!isLoading && missingDays.length > 0 && (
+          <NeedsAttention missingDays={missingDays.map((d) => ({ date: d }))} />
+        )}
+
+        {/* Today's Progress */}
+        {!isLoading && (
+          <TodayProgress
+            checkInTime={checkInTime}
+            checkOutTime={checkOutTime}
+            hasWorkLog={hasWorkLog}
+            phase={phase}
+          />
+        )}
+
+        {/* Portfolio Metrics */}
+        {!isLoading && (
+          <PortfolioMetrics
+            attendanceScore={data?.attendanceScore ?? 0}
+            streak={data?.streak ?? 0}
+            attendanceBreakdown={data?.attendanceBreakdown}
+            logbookCount={logbookCount}
+          />
+        )}
+
+        {/* Recent Attendance */}
+        {!isLoading && data?.recentHistory && <RecentAttendanceTable logs={data.recentHistory} />}
+
+        {/* Announcements */}
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Announcements</h2>
+            <Link href="/dashboard/announcements" className="text-xs text-sph-blue hover:underline">
+              View all →
+            </Link>
+          </div>
+          {isLoading ? (
+            <div className="flex flex-col gap-3">
+              {[1, 2].map((i) => (
+                <Skeleton key={i} className="h-16 rounded-xl bg-[var(--surface-elevated)]" />
+              ))}
+            </div>
+          ) : (
+            <AnnouncementCard announcements={announcements?.announcements.slice(0, 3) ?? []} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // ── STAFF / MEMBER / ATTACHEE DASHBOARD ──
 
   // STATE P: Pending approval or rejected
-  const userStatus = data?.user?.status;
   if (userStatus === 'PENDING_APPROVAL') {
     return (
       <div className="flex flex-col gap-6">
@@ -768,7 +880,8 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">
             Habari, {firstName}
           </h1>
-          {subtitle && <p className="text-sm text-secondary">{subtitle}</p>}
+          {greetingSubtitle && <p className="text-sm text-secondary">{greetingSubtitle}</p>}
+          {shiftInfo && <p className="mt-0.5 text-xs text-muted">{shiftInfo}</p>}
         </div>
 
         <div className="flex flex-col items-center gap-4 rounded-2xl surface p-8 text-center">
@@ -805,7 +918,8 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-[var(--text-primary)] sm:text-3xl">
             Habari, {firstName}
           </h1>
-          {subtitle && <p className="text-sm text-secondary">{subtitle}</p>}
+          {greetingSubtitle && <p className="text-sm text-secondary">{greetingSubtitle}</p>}
+          {shiftInfo && <p className="mt-0.5 text-xs text-muted">{shiftInfo}</p>}
         </div>
 
         <div className="flex flex-col items-center gap-4 rounded-2xl surface p-8 text-center">
@@ -850,85 +964,86 @@ export default function DashboardPage() {
                 </h1>
                 <span className="h-2.5 w-2.5 rounded-full bg-sph-green" title="Connected" />
               </div>
-              {subtitle && <p className="text-sm text-secondary">{subtitle}</p>}
+              {greetingSubtitle && <p className="text-sm text-secondary">{greetingSubtitle}</p>}
+              {shiftInfo && <p className="mt-0.5 text-xs text-muted">{shiftInfo}</p>}
             </>
           )}
         </div>
 
         {/* Today Summary */}
-        <div className="rounded-2xl surface p-6">
-          {isLoading ? (
-            <CheckInButtonSkeleton />
-          ) : (
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-sph-green/20">
-                <div className="h-3 w-3 rounded-full bg-sph-green" />
-              </div>
-              <h2 className="text-xl font-semibold text-[var(--text-primary)]">Day Complete</h2>
-              <p className="text-sm text-secondary">
-                {formatTime(checkInTime)} — {formatTime(checkOutTime)}
-              </p>
-              <div className="flex items-center gap-2">
-                <Badge className={statusBadgeClass(checkInStatus)}>{checkInStatus}</Badge>
-              </div>
-              <Link
-                href="/dashboard/worklog"
-                className="rounded-xl bg-sph-blue px-6 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5"
-              >
-                View Work Log
-              </Link>
-            </div>
-          )}
-        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-4 py-6">
+            {isLoading ? (
+              <CheckInButtonSkeleton />
+            ) : (
+              <>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-sph-green/20">
+                  <div className="h-3 w-3 rounded-full bg-sph-green" />
+                </div>
+                <h2 className="text-xl font-semibold text-[var(--text-primary)]">Day Complete</h2>
+                <p className="text-sm text-secondary">
+                  {formatTime(checkInTime)} — {formatTime(checkOutTime)}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Badge className={statusBadgeClass(checkInStatus)}>{checkInStatus}</Badge>
+                </div>
+                <Link
+                  href="/dashboard/worklog"
+                  className="rounded-xl bg-sph-blue px-6 py-2.5 text-sm font-semibold text-white transition-all hover:-translate-y-0.5"
+                >
+                  View Work Log
+                </Link>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Score Ring - only visible after check-out */}
-        <div className="rounded-2xl surface p-6">
-          {isLoading ? (
-            <Skeleton className="h-32 rounded-lg bg-[var(--surface-elevated)]" />
-          ) : (
-            <div className="flex flex-col items-center gap-4">
-              <h2 className="text-sm font-semibold text-[var(--text-primary)]">Your Score</h2>
-              <ScoreRing score={data?.attendanceScore ?? 0} size={140} />
-              <p className="text-lg font-bold text-[var(--text-primary)]">
-                {data?.attendanceScore ?? 0}% Attendance
-              </p>
-              <p className="text-sm text-muted">{data?.streak ?? 0}-day streak!</p>
-            </div>
-          )}
-        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center gap-4 py-6">
+            {isLoading ? (
+              <Skeleton className="h-32 rounded-lg bg-[var(--surface-elevated)]" />
+            ) : (
+              <>
+                <h2 className="text-sm font-semibold text-[var(--text-primary)]">Your Score</h2>
+                <ScoreRing score={data?.attendanceScore ?? 0} size={140} />
+                <p className="text-lg font-bold text-[var(--text-primary)]">
+                  {data?.attendanceScore ?? 0}% Attendance
+                </p>
+                <p className="text-sm text-muted">{data?.streak ?? 0}-day streak!</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-        {/* Week Strip */}
-        <div className="rounded-2xl surface p-5">
-          <h2 className="mb-4 text-sm font-semibold text-[var(--text-primary)]">This Week</h2>
-          {isLoading ? (
-            <div className="flex justify-between">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Skeleton key={i} className="h-8 w-8 rounded-full bg-[var(--surface-elevated)]" />
-              ))}
-            </div>
-          ) : (
-            <WeekStrip days={weekDays} />
-          )}
-        </div>
+        {/* Recent Attendance */}
+        {!isLoading && data?.recentHistory && <RecentAttendanceTable logs={data.recentHistory} />}
 
         {/* Announcements */}
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Announcements</h2>
-            <Link href="/dashboard/announcements" className="text-xs text-sph-blue hover:underline">
-              View all →
-            </Link>
-          </div>
-          {isLoading ? (
-            <div className="flex flex-col gap-3">
-              {[1, 2].map((i) => (
-                <Skeleton key={i} className="h-16 rounded-xl bg-[var(--surface-elevated)]" />
-              ))}
-            </div>
-          ) : (
-            <AnnouncementCard announcements={announcements?.announcements.slice(0, 2) ?? []} />
-          )}
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Announcements</CardTitle>
+            <CardAction>
+              <Link
+                href="/dashboard/announcements"
+                className="text-xs text-sph-blue hover:underline"
+              >
+                View all →
+              </Link>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex flex-col gap-3">
+                {[1, 2].map((i) => (
+                  <Skeleton key={i} className="h-16 rounded-xl bg-[var(--surface-elevated)]" />
+                ))}
+              </div>
+            ) : (
+              <AnnouncementCard announcements={announcements?.announcements.slice(0, 2) ?? []} />
+            )}
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -949,46 +1064,38 @@ export default function DashboardPage() {
                 </h1>
                 <span className="h-2.5 w-2.5 rounded-full bg-sph-green" title="Connected" />
               </div>
+              {greetingSubtitle && <p className="text-sm text-secondary">{greetingSubtitle}</p>}
+              {shiftInfo && <p className="mt-0.5 text-xs text-muted">{shiftInfo}</p>}
             </>
           )}
         </div>
 
         {/* Today Card */}
-        <div className="rounded-2xl surface p-6">
-          {isLoading ? (
-            <CheckInButtonSkeleton />
-          ) : (
-            <CheckInButton
-              phase={phase}
-              status={checkInStatus}
-              checkInTime={checkInTime}
-              checkOutTime={checkOutTime}
-              onCheckedIn={handleCheckedIn}
-              onCheckedOut={handleCheckedOut}
-              role={role}
-              departmentName={subtitle}
-            />
-          )}
-        </div>
-
-        {/* Week Strip */}
-        <div className="rounded-2xl surface p-5">
-          <h2 className="mb-4 text-sm font-semibold text-[var(--text-primary)]">This Week</h2>
-          {isLoading ? (
-            <div className="flex justify-between">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Skeleton key={i} className="h-8 w-8 rounded-full bg-[var(--surface-elevated)]" />
-              ))}
-            </div>
-          ) : (
-            <WeekStrip days={weekDays} />
-          )}
-        </div>
+        <Card>
+          <CardContent className="py-6">
+            {isLoading ? (
+              <CheckInButtonSkeleton />
+            ) : (
+              <CheckInButton
+                phase={phase}
+                status={checkInStatus}
+                checkInTime={checkInTime}
+                checkOutTime={checkOutTime}
+                onCheckedIn={handleCheckedIn}
+                onCheckedOut={handleCheckedOut}
+                role={role}
+                departmentName={deptName}
+              />
+            )}
+          </CardContent>
+        </Card>
 
         {/* Quick Actions */}
-        <div className="rounded-2xl surface p-5">
-          <h2 className="mb-4 text-sm font-semibold text-[var(--text-primary)]">Quick Actions</h2>
-          <div className="flex flex-col gap-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
             <Link
               href="/dashboard/worklog"
               className="flex items-center justify-between rounded-xl border border-[var(--border)] p-4 transition-colors hover:bg-[var(--surface-elevated)]"
@@ -1010,27 +1117,37 @@ export default function DashboardPage() {
               <span className="text-sm text-[var(--text-primary)]">File Dispute</span>
               <ArrowRight className="h-4 w-4 text-muted" />
             </Link>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Attendance */}
+        {!isLoading && data?.recentHistory && <RecentAttendanceTable logs={data.recentHistory} />}
 
         {/* Announcements */}
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Announcements</h2>
-            <Link href="/dashboard/announcements" className="text-xs text-sph-blue hover:underline">
-              View all →
-            </Link>
-          </div>
-          {isLoading ? (
-            <div className="flex flex-col gap-3">
-              {[1, 2].map((i) => (
-                <Skeleton key={i} className="h-16 rounded-xl bg-[var(--surface-elevated)]" />
-              ))}
-            </div>
-          ) : (
-            <AnnouncementCard announcements={announcements?.announcements.slice(0, 2) ?? []} />
-          )}
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Announcements</CardTitle>
+            <CardAction>
+              <Link
+                href="/dashboard/announcements"
+                className="text-xs text-sph-blue hover:underline"
+              >
+                View all →
+              </Link>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex flex-col gap-3">
+                {[1, 2].map((i) => (
+                  <Skeleton key={i} className="h-16 rounded-xl bg-[var(--surface-elevated)]" />
+                ))}
+              </div>
+            ) : (
+              <AnnouncementCard announcements={announcements?.announcements.slice(0, 2) ?? []} />
+            )}
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -1050,68 +1167,62 @@ export default function DashboardPage() {
               </h1>
               <span className="h-2.5 w-2.5 rounded-full bg-sph-green" title="Connected" />
             </div>
-            {subtitle && <p className="text-sm text-secondary">{subtitle}</p>}
+            {greetingSubtitle && <p className="text-sm text-secondary">{greetingSubtitle}</p>}
+            {shiftInfo && <p className="mt-0.5 text-xs text-muted">{shiftInfo}</p>}
           </>
         )}
       </div>
 
       {/* Check-In Hero */}
-      <div className="rounded-2xl surface p-8">
-        {isLoading ? (
-          <CheckInButtonSkeleton />
-        ) : (
-          <CheckInButton
-            phase={phase}
-            status={checkInStatus}
-            checkInTime={checkInTime}
-            checkOutTime={checkOutTime}
-            onCheckedIn={handleCheckedIn}
-            onCheckedOut={handleCheckedOut}
-            role={role}
-            departmentName={subtitle}
-          />
-        )}
-      </div>
+      <Card>
+        <CardContent className="py-8">
+          {isLoading ? (
+            <CheckInButtonSkeleton />
+          ) : (
+            <CheckInButton
+              phase={phase}
+              status={checkInStatus}
+              checkInTime={checkInTime}
+              checkOutTime={checkOutTime}
+              onCheckedIn={handleCheckedIn}
+              onCheckedOut={handleCheckedOut}
+              role={role}
+              departmentName={deptName}
+            />
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Collapsible Week Strip */}
-      <div className="rounded-2xl surface p-5">
-        <button
-          type="button"
-          onClick={() => setWeekExpanded(!weekExpanded)}
-          className="flex w-full items-center justify-between"
-        >
-          <span className="text-sm text-secondary">
-            This week: {weekDays.filter((d) => d.status).length}/5 days
-          </span>
-          <span className="text-xs text-sph-blue">
-            {weekExpanded ? 'Tap to hide' : 'Tap to see'} →
-          </span>
-        </button>
-        {weekExpanded && (
-          <div className="mt-4">
-            <WeekStrip days={weekDays} />
-          </div>
-        )}
-      </div>
+      {/* Recent Attendance */}
+      {!isLoading && data?.recentHistory && <RecentAttendanceTable logs={data.recentHistory} />}
 
-      {/* Announcements - single line preview */}
-      {announcements && announcements.announcements.length > 0 && (
-        <div className="rounded-2xl surface px-5 py-4">
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-sph-blue" />
-            <div className="flex-1">
-              <p className="text-sm text-[var(--text-primary)]">
-                {announcements.announcements[0].title}
-              </p>
-              <Link
-                href="/dashboard/announcements"
-                className="mt-1 text-xs text-sph-blue hover:underline"
-              >
-                View all announcements →
-              </Link>
-            </div>
-          </div>
+      {/* Announcements */}
+      {isLoading ? (
+        <div className="flex flex-col gap-3">
+          {[1, 2].map((i) => (
+            <Skeleton key={i} className="h-16 rounded-xl bg-[var(--surface-elevated)]" />
+          ))}
         </div>
+      ) : (
+        announcements &&
+        announcements.announcements.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Announcements</CardTitle>
+              <CardAction>
+                <Link
+                  href="/dashboard/announcements"
+                  className="text-xs text-sph-blue hover:underline"
+                >
+                  View all →
+                </Link>
+              </CardAction>
+            </CardHeader>
+            <CardContent>
+              <AnnouncementCard announcements={announcements.announcements.slice(0, 2)} />
+            </CardContent>
+          </Card>
+        )
       )}
     </div>
   );

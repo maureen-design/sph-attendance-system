@@ -21,6 +21,7 @@ function RegisterForm() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [institution, setInstitution] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -73,6 +74,7 @@ function RegisterForm() {
         fullName,
         email,
         phone: phone || undefined,
+        institution,
         password,
         inviteToken: token,
       });
@@ -218,6 +220,22 @@ function RegisterForm() {
                 placeholder="you@example.com"
                 className="h-11 rounded-xl border-[var(--border)] bg-[var(--surface-elevated)] px-4 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
               />
+            </div>
+
+            {/* Institution */}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="institution">Institution</Label>
+              <Input
+                id="institution"
+                required
+                value={institution}
+                onChange={(e) => setInstitution(e.target.value)}
+                placeholder="e.g. Technical University of Mombasa"
+                className="h-11 rounded-xl border-[var(--border)] bg-[var(--surface-elevated)] px-4 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+              />
+              <span className="text-xs text-[var(--text-muted)]">
+                The institution you are attached from
+              </span>
             </div>
 
             {/* Phone */}

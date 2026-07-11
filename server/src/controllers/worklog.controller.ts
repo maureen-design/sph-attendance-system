@@ -115,8 +115,16 @@ export async function getMyWorkLogs(
 ): Promise<void> {
   try {
     const userId = req.user!.id;
+    const organizationId = req.user!.organizationId;
 
-    const monthStr = (req.query.month as string) ?? format(new Date(), 'yyyy-MM');
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { timezone: true },
+    });
+    const orgTimezone = org?.timezone ?? 'Africa/Nairobi';
+    const todayStr = format(toZonedTime(new Date(), orgTimezone), 'yyyy-MM-dd');
+
+    const monthStr = (req.query.month as string) ?? todayStr.slice(0, 7);
     const monthDate = parse(monthStr, 'yyyy-MM', new Date());
     const monthStart = startOfMonth(monthDate);
     const monthEnd = endOfMonth(monthDate);
@@ -130,13 +138,13 @@ export async function getMyWorkLogs(
       orderBy: { date: 'desc' },
     })) as WorkLogRow[];
 
-    // Calculate working days in month (exclude weekends)
+    // Calculate working days in month (exclude weekends and future dates)
     const allDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
     const workingDays = allDays.filter((d: Date) => !isWeekend(d));
     const logDateSet = new Set(logs.map((l: WorkLogRow) => format(l.date, 'yyyy-MM-dd')));
     const missingDays = workingDays
       .map((d: Date) => format(d, 'yyyy-MM-dd'))
-      .filter((d: string) => !logDateSet.has(d));
+      .filter((d: string) => d < todayStr && !logDateSet.has(d));
 
     respond.success(res, { logs, missingDays });
   } catch (err) {
