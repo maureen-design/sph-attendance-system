@@ -128,6 +128,11 @@ export async function getSupervisorDashboard(
     const scopedDeptId =
       userRole === Role.DEPARTMENT_SUPERVISOR ? await resolveSupervisorDeptId(userId) : queryDeptId;
 
+    if (userRole === Role.DEPARTMENT_SUPERVISOR && !scopedDeptId) {
+      respond.error(res, 'No department assigned — contact your administrator', 403);
+      return;
+    }
+
     // Fetch logs - explicit branches avoid spread breaking Prisma type inference
     const logInclude = {
       user: { select: { id: true, fullName: true, role: true, cohortId: true } },
@@ -155,30 +160,49 @@ export async function getSupervisorDashboard(
             })
     ) as LogWithUser[];
 
+    // Exclude supervisor logs from aggregation counts
+    const rosterLogs = logs.filter((l: LogWithUser) => l.user.role !== 'DEPARTMENT_SUPERVISOR');
+
     // Filter by cohort in-memory
     const filteredLogs = cohortId
-      ? logs.filter((l: LogWithUser) => l.user.cohortId === cohortId)
-      : logs;
+      ? rosterLogs.filter((l: LogWithUser) => l.user.cohortId === cohortId)
+      : rosterLogs;
 
-    // Fetch expected users
+    // Fetch expected users — exclude DEPARTMENT_SUPERVISOR from roster
     const baseUsers = (
       scopedDeptId
         ? cohortId
           ? await prisma.user.findMany({
-              where: { organizationId, status: 'ACTIVE', departmentId: scopedDeptId, cohortId },
+              where: {
+                organizationId,
+                status: 'ACTIVE',
+                departmentId: scopedDeptId,
+                cohortId,
+                role: { not: 'DEPARTMENT_SUPERVISOR' },
+              },
               select: { id: true, fullName: true, role: true },
             })
           : await prisma.user.findMany({
-              where: { organizationId, status: 'ACTIVE', departmentId: scopedDeptId },
+              where: {
+                organizationId,
+                status: 'ACTIVE',
+                departmentId: scopedDeptId,
+                role: { not: 'DEPARTMENT_SUPERVISOR' },
+              },
               select: { id: true, fullName: true, role: true },
             })
         : cohortId
           ? await prisma.user.findMany({
-              where: { organizationId, status: 'ACTIVE', cohortId },
+              where: {
+                organizationId,
+                status: 'ACTIVE',
+                cohortId,
+                role: { not: 'DEPARTMENT_SUPERVISOR' },
+              },
               select: { id: true, fullName: true, role: true },
             })
           : await prisma.user.findMany({
-              where: { organizationId, status: 'ACTIVE' },
+              where: { organizationId, status: 'ACTIVE', role: { not: 'DEPARTMENT_SUPERVISOR' } },
               select: { id: true, fullName: true, role: true },
             })
     ) as BaseUser[];
@@ -207,6 +231,13 @@ export async function getSupervisorDashboard(
     const absent = users.length - logMap.size;
     const unresolved = records.filter((r: { status: string }) => r.status === 'UNRESOLVED').length;
 
+    // Include available cohorts for the frontend filter dropdown
+    const cohorts = await prisma.cohort.findMany({
+      where: { organizationId, isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+
     respond.success(res, {
       totalExpected: users.length,
       checkedIn,
@@ -214,6 +245,7 @@ export async function getSupervisorDashboard(
       absent,
       unresolved,
       records,
+      cohorts,
     });
   } catch (err) {
     next(err);
@@ -232,20 +264,42 @@ export async function getLiveDashboard(
     const userRole = req.user!.role;
     const organizationId = req.user!.organizationId;
 
+    const { date: dateStr } = req.query as { date?: string };
+
     const org = await prisma.organization.findUnique({
       where: { id: organizationId },
       select: { timezone: true },
     });
     const orgTimezone = org?.timezone ?? 'Africa/Nairobi';
-    const todayDate = new Date(getTodayStr(orgTimezone) + 'T00:00:00.000Z');
+    const targetDateStr = dateStr ?? getTodayStr(orgTimezone);
+    const targetDate = new Date(targetDateStr + 'T00:00:00.000Z');
 
     const scopedDeptId =
       userRole === Role.DEPARTMENT_SUPERVISOR ? await resolveSupervisorDeptId(userId) : undefined;
 
+    if (userRole === Role.DEPARTMENT_SUPERVISOR && !scopedDeptId) {
+      respond.error(res, 'No department assigned — contact your administrator', 403);
+      return;
+    }
+
+    // Exclude DEPARTMENT_SUPERVISOR from user counts and log aggregation
+    const supervisorIds = (
+      await prisma.user.findMany({
+        where: { organizationId, role: 'DEPARTMENT_SUPERVISOR' },
+        select: { id: true },
+      })
+    ).map((u: { id: string }) => u.id);
+
     const deptSelect = {
       id: true,
       name: true,
-      _count: { select: { users: { where: { status: 'ACTIVE' } } } },
+      _count: {
+        select: {
+          users: {
+            where: { status: 'ACTIVE', id: { notIn: supervisorIds } },
+          },
+        },
+      },
     } as const;
 
     const departments = (
@@ -260,16 +314,20 @@ export async function getLiveDashboard(
           })
     ) as DeptSummary[];
 
-    // Get today's logs for relevant departments
+    // Get logs for the target date
     const deptIds = departments.map((d: DeptSummary) => d.id);
     const logs = (await prisma.attendanceLog.findMany({
-      where: { organizationId, date: todayDate, departmentId: { in: deptIds } },
+      where: { organizationId, date: targetDate, departmentId: { in: deptIds } },
       select: { userId: true, departmentId: true, status: true },
     })) as SimpleLog[];
 
+    // Filter out supervisor logs
+    const supervisorIdSet = new Set(supervisorIds);
+    const rosterLogs = logs.filter((l: SimpleLog) => !supervisorIdSet.has(l.userId));
+
     // Group logs by department
     const logsByDept = new Map<string, SimpleLog[]>();
-    for (const log of logs) {
+    for (const log of rosterLogs) {
       const arr = logsByDept.get(log.departmentId) ?? [];
       arr.push(log);
       logsByDept.set(log.departmentId, arr);
@@ -283,7 +341,6 @@ export async function getLiveDashboard(
         (l: SimpleLog) => l.status === 'ON_TIME' || l.status === 'EARLY',
       ).length;
       const late = deptLogs.filter((l: SimpleLog) => l.status === 'LATE').length;
-      const unresolved = totalUsers - deptLogs.length;
 
       return {
         id: dept.id,
@@ -291,7 +348,7 @@ export async function getLiveDashboard(
         totalUsers,
         checkedIn,
         late,
-        unresolved,
+        notCheckedIn: totalUsers - deptLogs.length,
       };
     });
 
@@ -340,6 +397,11 @@ export async function exportAttendance(
 
     const scopedDeptId =
       userRole === Role.DEPARTMENT_SUPERVISOR ? await resolveSupervisorDeptId(userId) : queryDeptId;
+
+    if (userRole === Role.DEPARTMENT_SUPERVISOR && !scopedDeptId) {
+      respond.error(res, 'No department assigned — contact your administrator', 403);
+      return;
+    }
 
     const logInclude = {
       user: {
@@ -645,6 +707,11 @@ export async function getSupervisorSummary(
     // Scope department for DEPARTMENT_SUPERVISOR
     const scopedDeptId =
       userRole === Role.DEPARTMENT_SUPERVISOR ? await resolveSupervisorDeptId(userId) : queryDeptId;
+
+    if (userRole === Role.DEPARTMENT_SUPERVISOR && !scopedDeptId) {
+      respond.error(res, 'No department assigned — contact your administrator', 403);
+      return;
+    }
 
     // Get org holidays in range
     const holidays = (await prisma.holiday.findMany({

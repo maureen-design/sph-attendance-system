@@ -19,6 +19,8 @@ import {
   ThumbsUp,
   ThumbsDown,
   Loader2,
+  Download,
+  Calendar,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { get, post } from '@/lib/api';
@@ -81,6 +83,7 @@ interface SupervisorData {
   absent: number;
   unresolved: number;
   records: AttendanceRecord[];
+  cohorts?: { id: string; name: string }[];
 }
 
 interface LiveDept {
@@ -89,7 +92,7 @@ interface LiveDept {
   totalUsers: number;
   checkedIn: number;
   late: number;
-  unresolved: number;
+  notCheckedIn: number;
 }
 
 interface LiveData {
@@ -181,10 +184,18 @@ export default function SupervisorDashboardPage() {
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [filterSearch, setFilterSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [filterCohort, setFilterCohort] = useState<string>('');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 25;
+
+  // Export
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportRange, setExportRange] = useState<'today' | 'week' | 'month' | 'custom'>('today');
+  const [exportStartDate, setExportStartDate] = useState('');
+  const [exportEndDate, setExportEndDate] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (user && !['SUPER_ADMIN', 'DEPARTMENT_SUPERVISOR'].includes(user.role)) {
@@ -201,6 +212,7 @@ export default function SupervisorDashboardPage() {
         const params = new URLSearchParams();
         if (filterStatus) params.set('status', filterStatus);
         if (filterSearch) params.set('search', filterSearch);
+        if (filterCohort) params.set('cohortId', filterCohort);
 
         const [roster, live, disputes, pending] = await Promise.all([
           get<SupervisorData>(`/dashboard/supervisor?${params}`),
@@ -219,7 +231,7 @@ export default function SupervisorDashboardPage() {
       }
     }
     fetchData();
-  }, [filterStatus, filterSearch]);
+  }, [filterStatus, filterSearch, filterCohort]);
 
   const handleSearch = useCallback(() => {
     setFilterSearch(searchInput);
@@ -263,6 +275,59 @@ export default function SupervisorDashboardPage() {
     }
   }, [rejectTarget, rejectReason]);
 
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      let start: string;
+      let end: string;
+      const today = new Date();
+      const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+      if (exportRange === 'today') {
+        start = end = fmt(today);
+      } else if (exportRange === 'week') {
+        const day = today.getDay();
+        const mon = new Date(today);
+        mon.setDate(today.getDate() - ((day + 6) % 7));
+        start = fmt(mon);
+        end = fmt(today);
+      } else if (exportRange === 'month') {
+        start = fmt(new Date(today.getFullYear(), today.getMonth(), 1));
+        end = fmt(today);
+      } else {
+        start = exportStartDate;
+        end = exportEndDate;
+      }
+
+      const params = new URLSearchParams({ startDate: start, endDate: end });
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api'}/dashboard/supervisor/export?${params}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+      );
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Export failed' }));
+        throw new Error(err.error ?? 'Export failed');
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `attendance-${start}-${end}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setExportOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  }, [exportRange, exportStartDate, exportEndDate]);
+
   const dept = liveData?.departments[0];
   const totalExpected = supervisorData?.totalExpected ?? dept?.totalUsers ?? 0;
   const checkedIn = supervisorData?.checkedIn ?? dept?.checkedIn ?? 0;
@@ -279,9 +344,15 @@ export default function SupervisorDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">Supervisor Dashboard</h1>
-        <p className="mt-1 text-sm text-muted">Today&apos;s attendance overview</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Supervisor Dashboard</h1>
+          <p className="mt-1 text-sm text-muted">Today&apos;s attendance overview</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setExportOpen(true)}>
+          <Download className="h-3.5 w-3.5 mr-1.5" />
+          Export
+        </Button>
       </div>
 
       {/* Overview Cards */}
@@ -358,6 +429,62 @@ export default function SupervisorDashboardPage() {
         </div>
       )}
 
+      {/* Live by Department */}
+      {liveData && liveData.departments.length > 0 && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {liveData.departments.map((dept) => (
+            <Card key={dept.id} className="border-sph-green/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-[var(--text-primary)] flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-sph-green animate-pulse" />
+                  {dept.name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between text-xs text-muted">
+                  <span>Checked in</span>
+                  <span className="font-semibold text-sph-green">{dept.checkedIn}</span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-xs text-muted">
+                  <span>Late</span>
+                  <span className="font-semibold text-sph-amber">{dept.late}</span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-xs text-muted">
+                  <span>Not checked in</span>
+                  <span className="font-semibold text-sph-red">{dept.notCheckedIn}</span>
+                </div>
+                <div className="mt-2 border-t border-[var(--border)] pt-2 flex items-center justify-between text-xs text-muted">
+                  <span>Total</span>
+                  <span className="font-semibold text-[var(--text-primary)]">
+                    {dept.totalUsers}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          <Card className="border-[var(--border)]">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-muted" />
+                Live indicator
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted">
+                Last updated:{' '}
+                {new Date(liveData.lastUpdated).toLocaleTimeString('en-KE', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: true,
+                })}
+              </p>
+              <p className="mt-1 text-[10px] text-muted">Auto-refreshes every 30s</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Error State */}
       {error && (
         <Card className="border-sph-red/30 bg-sph-red/5">
@@ -406,6 +533,22 @@ export default function SupervisorDashboardPage() {
           <option value="LEFT_EARLY">Left Early</option>
           <option value="UNRESOLVED">Unresolved</option>
           <option value="ABSENT_UNEXCUSED">Absent</option>
+        </select>
+
+        <select
+          value={filterCohort}
+          onChange={(e) => {
+            setFilterCohort(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="h-10 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 text-sm text-[var(--text-primary)] focus:border-sph-green focus:outline-none focus:ring-1 focus:ring-sph-green/30 transition-colors"
+        >
+          <option value="">All Cohorts</option>
+          {supervisorData?.cohorts?.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -646,6 +789,82 @@ export default function SupervisorDashboardPage() {
           </Card>
         </div>
       </div>
+
+      {/* Export Modal */}
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export Attendance</DialogTitle>
+            <DialogDescription>Choose a date range for the CSV export.</DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { value: 'today', label: 'Today' },
+                  { value: 'week', label: 'This Week' },
+                  { value: 'month', label: 'This Month' },
+                  { value: 'custom', label: 'Custom Range' },
+                ] as const
+              ).map((opt) => (
+                <Button
+                  key={opt.value}
+                  variant={exportRange === opt.value ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setExportRange(opt.value)}
+                >
+                  {opt.label}
+                </Button>
+              ))}
+            </div>
+
+            {exportRange === 'custom' && (
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1">
+                  <Label htmlFor="exportStart">Start date</Label>
+                  <Input
+                    id="exportStart"
+                    type="date"
+                    value={exportStartDate}
+                    onChange={(e) => setExportStartDate(e.target.value)}
+                    className="mt-1 h-10 rounded-xl border-[var(--border)] bg-[var(--surface-elevated)] px-3 text-[var(--text-primary)]"
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label htmlFor="exportEnd">End date</Label>
+                  <Input
+                    id="exportEnd"
+                    type="date"
+                    value={exportEndDate}
+                    onChange={(e) => setExportEndDate(e.target.value)}
+                    className="mt-1 h-10 rounded-xl border-[var(--border)] bg-[var(--surface-elevated)] px-3 text-[var(--text-primary)]"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleExport}
+              disabled={
+                exporting || (exportRange === 'custom' && (!exportStartDate || !exportEndDate))
+              }
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Download className="h-4 w-4 mr-1" />
+              )}
+              {exporting ? 'Exporting...' : 'Download CSV'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reject Modal */}
       <Dialog
