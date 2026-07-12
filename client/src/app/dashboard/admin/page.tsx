@@ -25,7 +25,7 @@ interface LiveDept {
   totalUsers: number;
   checkedIn: number;
   late: number;
-  unresolved: number;
+  notCheckedIn: number;
 }
 
 interface LiveData {
@@ -65,7 +65,7 @@ export default function AdminDashboardPage() {
   const totalUsers = liveData?.departments.reduce((sum, d) => sum + d.totalUsers, 0) ?? 0;
   const totalCheckedIn = liveData?.departments.reduce((sum, d) => sum + d.checkedIn, 0) ?? 0;
   const totalLate = liveData?.departments.reduce((sum, d) => sum + d.late, 0) ?? 0;
-  const totalUnresolved = liveData?.departments.reduce((sum, d) => sum + d.unresolved, 0) ?? 0;
+  const totalNotCheckedIn = liveData?.departments.reduce((sum, d) => sum + d.notCheckedIn, 0) ?? 0;
   const totalDepts = liveData?.departments.length ?? 0;
 
   const managementLinks = [
@@ -171,16 +171,16 @@ export default function AdminDashboardPage() {
 
         <Card>
           <CardHeader className="pb-0">
-            <CardTitle className="text-sm text-muted">Unresolved</CardTitle>
+            <CardTitle className="text-sm text-muted">Not Checked In</CardTitle>
           </CardHeader>
           <CardContent className="pt-2">
             {isLoading ? (
               <Skeleton className="h-8 w-16" />
             ) : (
               <p
-                className={`text-2xl font-bold ${totalUnresolved > 0 ? 'text-sph-red' : 'text-sph-green'}`}
+                className={`text-2xl font-bold ${totalNotCheckedIn > 0 ? 'text-sph-red' : 'text-sph-green'}`}
               >
-                {totalUnresolved}
+                {totalNotCheckedIn}
               </p>
             )}
           </CardContent>
@@ -208,7 +208,7 @@ export default function AdminDashboardPage() {
                     <th className="px-4 py-3 font-medium">Total</th>
                     <th className="px-4 py-3 font-medium">Checked In</th>
                     <th className="px-4 py-3 font-medium">Late</th>
-                    <th className="px-4 py-3 font-medium">Unresolved</th>
+                    <th className="px-4 py-3 font-medium">Not Checked In</th>
                     <th className="px-4 py-3 font-medium">Rate</th>
                   </tr>
                 </thead>
@@ -233,8 +233,8 @@ export default function AdminDashboardPage() {
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          {dept.unresolved > 0 ? (
-                            <span className="text-sph-red">{dept.unresolved}</span>
+                          {dept.notCheckedIn > 0 ? (
+                            <span className="text-sph-red">{dept.notCheckedIn}</span>
                           ) : (
                             <span className="text-muted">0</span>
                           )}
