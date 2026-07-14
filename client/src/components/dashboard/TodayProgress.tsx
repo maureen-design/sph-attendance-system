@@ -8,6 +8,7 @@ interface TodayProgressProps {
   checkOutTime: string | null;
   hasWorkLog: boolean;
   phase: string;
+  hideWorkLog?: boolean;
 }
 
 function formatTime(iso: string | null): string {
@@ -24,6 +25,7 @@ export function TodayProgress({
   checkOutTime,
   hasWorkLog,
   phase,
+  hideWorkLog = false,
 }: TodayProgressProps) {
   const items = [
     {
@@ -33,19 +35,23 @@ export function TodayProgress({
       detail: checkInTime ? formatTime(checkInTime) : 'Not yet',
       done: !!checkInTime,
     },
-    {
-      icon: FileText,
-      label: 'Work log',
-      status: hasWorkLog ? 'done' : 'pending',
-      detail: hasWorkLog ? (
-        'Written'
-      ) : (
-        <Link href="/dashboard/worklog" className="text-sph-blue hover:underline">
-          Not written
-        </Link>
-      ),
-      done: hasWorkLog,
-    },
+    ...(hideWorkLog
+      ? []
+      : [
+          {
+            icon: FileText,
+            label: 'Work log',
+            status: hasWorkLog ? 'done' : 'pending',
+            detail: hasWorkLog ? (
+              'Written'
+            ) : (
+              <Link href="/dashboard/worklog" className="text-sph-blue hover:underline">
+                Not written
+              </Link>
+            ),
+            done: hasWorkLog,
+          },
+        ]),
     {
       icon: phase === 'checked-out' ? LogOut : Clock,
       label: 'Check-out',

@@ -5,6 +5,7 @@ import {
   AttendanceStatus,
   CheckInMethod,
   CheckOutMethod,
+  AnnouncementCategory,
 } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
@@ -244,6 +245,47 @@ async function main() {
       ),
     ),
   );
+
+  // 8b) Announcements for testing
+  console.log('Creating announcements...');
+  await prisma.announcement.createMany({
+    data: [
+      {
+        organizationId: org.id,
+        departmentId: null,
+        title: 'Welcome to SPH Attendance System',
+        body: 'The new attendance tracking system is now live. Please check in daily using the QR code at the entrance. For issues, contact your supervisor.',
+        category: AnnouncementCategory.STANDARD,
+        postedById: admin.id,
+        isPinned: true,
+      },
+      {
+        organizationId: org.id,
+        departmentId: null,
+        title: 'Mandatory Safety Briefing This Friday',
+        body: 'All staff and attachees must attend the mandatory safety briefing on Friday at 10:00 AM in the main hall. Attendance will be taken.',
+        category: AnnouncementCategory.CRITICAL,
+        postedById: admin.id,
+        requiresAck: true,
+      },
+      {
+        organizationId: org.id,
+        departmentId: departments[0].id,
+        title: 'Tech Team Standup Rescheduled',
+        body: 'The daily standup has been moved to 9:30 AM starting next week. Please update your calendars accordingly.',
+        category: AnnouncementCategory.DEPARTMENT,
+        postedById: supervisors[0].id,
+      },
+      {
+        organizationId: org.id,
+        departmentId: departments[1].id,
+        title: 'Comms Team Brand Guidelines Update',
+        body: 'Please review the updated brand guidelines document shared in the drive. All new content must follow the latest template.',
+        category: AnnouncementCategory.DEPARTMENT,
+        postedById: supervisors[1].id,
+      },
+    ],
+  });
 
   // 9) Attendance logs — spread across past 7 days
   console.log('Creating attendance logs...');

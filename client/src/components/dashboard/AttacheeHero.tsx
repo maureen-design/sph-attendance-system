@@ -17,6 +17,7 @@ interface HeroProps {
   onCheckedIn: (log: { id: string; status: string; checkInTime: string }) => void;
   onCheckedOut: (log: { id: string; status: string; checkOutTime: string }) => void;
   role: string;
+  hideDailyLog?: boolean;
 }
 
 interface ForgottenSession {
@@ -70,6 +71,7 @@ export function AttacheeHero({
   onCheckedIn,
   onCheckedOut,
   role,
+  hideDailyLog = false,
 }: HeroProps) {
   const [local, setLocal] = useState<
     'idle' | 'processing' | 'success' | 'checked-in' | 'checked-out'
@@ -248,7 +250,7 @@ export function AttacheeHero({
           <p className="text-xs text-muted">
             In {formatTime(checkInTime)} &middot; {statusLabel(status)}
           </p>
-          {isAttachee && (
+          {isAttachee && !hideDailyLog && (
             <Link
               href="/dashboard/worklog"
               className="rounded-xl border border-[var(--border)] px-5 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-[var(--surface-elevated)] hover:text-[var(--text-primary)]"
