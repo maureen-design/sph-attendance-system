@@ -13,6 +13,7 @@ interface PortfolioMetricsProps {
   attendanceBreakdown?: AttendanceBreakdown;
   logbookCount?: number;
   reviewedCount?: number;
+  showLogbooks?: boolean;
 }
 
 export function PortfolioMetrics({
@@ -21,6 +22,7 @@ export function PortfolioMetrics({
   attendanceBreakdown,
   logbookCount,
   reviewedCount,
+  showLogbooks = true,
 }: PortfolioMetricsProps) {
   const metrics = [
     {
@@ -42,7 +44,7 @@ export function PortfolioMetrics({
       sub: streak === 1 ? 'day' : `${streak} days`,
       color: streak >= 5 ? 'text-sph-green' : 'text-[var(--text-primary)]',
     },
-    ...(typeof logbookCount === 'number'
+    ...(showLogbooks && typeof logbookCount === 'number'
       ? [
           {
             label: 'Logbooks',

@@ -1,5 +1,5 @@
 ﻿import cron from 'node-cron';
-import { format, subDays } from 'date-fns';
+import { format, subDays, isWeekend } from 'date-fns';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { Role } from '@prisma/client';
 import prisma from '../db/prisma.js';
@@ -77,6 +77,15 @@ async function cutoffChecker(): Promise<void> {
       const todayDate = getTodayDate(org.timezone);
       const nowMins = now.getHours() * 60 + now.getMinutes();
 
+      // Skip weekends — no attendance expected
+      if (isWeekend(todayDate)) continue;
+
+      // Skip holidays — no attendance expected
+      const holiday = await prisma.holiday.findFirst({
+        where: { organizationId: org.id, date: todayDate },
+      });
+      if (holiday) continue;
+
       const departments = (await prisma.department.findMany({
         where: { organizationId: org.id },
         select: { id: true, name: true },
@@ -133,6 +142,14 @@ async function cutoffChecker(): Promise<void> {
               })) as { id: string }[];
 
               for (const sup of supervisors) {
+                const existing = await prisma.notification.findFirst({
+                  where: {
+                    userId: sup.id,
+                    type: 'CUTOFF_ALERT',
+                    createdAt: { gte: todayDate },
+                  },
+                });
+                if (existing) continue;
                 await prisma.notification.create({
                   data: {
                     userId: sup.id,

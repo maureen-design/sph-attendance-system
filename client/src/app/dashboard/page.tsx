@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Zap,
   RefreshCw,
@@ -198,6 +199,7 @@ function CardSkeleton() {
 
 export default function DashboardPage() {
   const { user: authUser } = useAuth();
+  const router = useRouter();
   const role = authUser?.role ?? '';
 
   const [data, setData] = useState<DashboardData | null>(null);
@@ -225,6 +227,13 @@ export default function DashboardPage() {
   const isSupervisor = role === 'DEPARTMENT_SUPERVISOR';
   const isRegular = !isAdmin && !isSupervisor;
   const isAttachee = role === 'ATTACHEE';
+  const isStaffOrMember = role === 'STAFF' || role === 'MEMBER';
+
+  useEffect(() => {
+    if (isStaffOrMember) {
+      router.replace('/dashboard/home');
+    }
+  }, [isStaffOrMember, router]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);

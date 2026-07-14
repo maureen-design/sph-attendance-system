@@ -606,14 +606,19 @@ export async function getPersonalDashboard(
     const scoreDays = eachDayOfInterval({ start: scoreStartDate, end: scoreEndDate }).filter(
       (d: Date) => !isWeekendDate(d) && !holidaySet.has(format(d, 'yyyy-MM-dd')),
     );
+    const scoreDayStrs = new Set(scoreDays.map((d: Date) => format(d, 'yyyy-MM-dd')));
 
-    const onTimeDays = scoreLogs.filter(
+    const workingScoreLogs = scoreLogs.filter((l: AnyLog) =>
+      scoreDayStrs.has(format(new Date(l.date), 'yyyy-MM-dd')),
+    );
+
+    const onTimeDays = workingScoreLogs.filter(
       (l: AnyLog) => l.status === 'ON_TIME' || l.status === 'EARLY',
     ).length;
-    const lateDays = scoreLogs.filter(
+    const lateDays = workingScoreLogs.filter(
       (l: AnyLog) => l.status === 'LATE' || l.status === 'LEFT_EARLY',
     ).length;
-    const absentDays = scoreDays.length - scoreLogs.length;
+    const absentDays = Math.max(0, scoreDays.length - workingScoreLogs.length);
     const attendanceScore =
       scoreDays.length > 0 ? Math.round((onTimeDays / scoreDays.length) * 100) : 100;
 

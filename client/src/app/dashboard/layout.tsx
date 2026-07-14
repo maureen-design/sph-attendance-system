@@ -18,10 +18,12 @@ import {
   Sun,
   Moon,
   FileText,
+  Bell,
 } from 'lucide-react';
 import { AuthGuard } from '@/components/guards/AuthGuard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAuth } from '@/context/AuthContext';
+import NotificationBell from '@/components/notifications/NotificationBell';
 
 const ROLE = {
   SUPER_ADMIN: 'SUPER_ADMIN',
@@ -145,8 +147,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const isAdmin = role === ROLE.SUPER_ADMIN;
   const isSupervisor = role === ROLE.DEPARTMENT_SUPERVISOR;
 
+  const isStaffOrMember = role === 'STAFF' || role === 'MEMBER';
+  const homeHref = isStaffOrMember ? '/dashboard/home' : '/dashboard';
+  const homeMatch = isStaffOrMember ? '/dashboard/home' : '/dashboard';
   const primaryNavItems = [
-    { href: '/dashboard', icon: LayoutDashboard, label: 'Home', match: '/dashboard' },
+    { href: homeHref, icon: LayoutDashboard, label: 'Home', match: homeMatch },
+    {
+      href: '/dashboard/notifications',
+      icon: Bell,
+      label: 'Notifications',
+      match: '/dashboard/notifications',
+    },
     { href: '/dashboard/profile', icon: User, label: 'Profile', match: '/dashboard/profile' },
     ...(role === 'ATTACHEE'
       ? [
@@ -223,7 +234,13 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     : [];
 
   const mobileNavItems = [
-    { href: '/dashboard', icon: LayoutDashboard, label: 'Home', match: '/dashboard' },
+    { href: homeHref, icon: LayoutDashboard, label: 'Home', match: homeMatch },
+    {
+      href: '/dashboard/notifications',
+      icon: Bell,
+      label: 'Notifs',
+      match: '/dashboard/notifications',
+    },
     { href: '/dashboard/profile', icon: User, label: 'Profile', match: '/dashboard/profile' },
     ...(role === 'ATTACHEE'
       ? [
@@ -330,6 +347,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
             </p>
             <span className="text-[10px] text-muted">{role}</span>
           </div>
+          <NotificationBell />
           <button
             type="button"
             onClick={toggleTheme}
@@ -363,7 +381,10 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               className="h-auto w-auto cursor-pointer transition-opacity hover:opacity-80"
             />
           </Link>
-          <span className="text-xs text-muted">{firstName}</span>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <span className="text-xs text-muted">{firstName}</span>
+          </div>
         </header>
 
         <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8">{children}</div>
