@@ -21,9 +21,10 @@ import {
   Loader2,
   Download,
   Calendar,
+  CalendarDays,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { get, post } from '@/lib/api';
+import { get, patch, post } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -132,6 +133,24 @@ interface PendingApprovalsData {
   users: PendingUser[];
 }
 
+interface PendingLeave {
+  id: string;
+  userId: string;
+  type: 'SICK' | 'EMERGENCY' | 'OFFICIAL_DUTY' | 'OTHER';
+  startDate: string;
+  endDate: string;
+  reason: string;
+  createdAt: string;
+  user: { id: string; fullName: string; role: string };
+}
+
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  SICK: 'Sick Leave',
+  EMERGENCY: 'Emergency',
+  OFFICIAL_DUTY: 'Official Duty',
+  OTHER: 'Other',
+};
+
 const STATUS_COLORS: Record<string, string> = {
   ON_TIME: 'bg-sph-green/10 text-sph-green border-sph-green/20',
   EARLY: 'bg-sph-green/10 text-sph-green border-sph-green/20',
@@ -175,6 +194,14 @@ export default function SupervisorDashboardPage() {
   const [pendingApprovals, setPendingApprovals] = useState<PendingApprovalsData | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
+  // Leave requests
+  const [pendingLeaves, setPendingLeaves] = useState<PendingLeave[]>([]);
+  const [leavesLoading, setLeavesLoading] = useState(false);
+  const [decidingLeaveId, setDecidingLeaveId] = useState<string | null>(null);
+  const [leaveDecisionNote, setLeaveDecisionNote] = useState('');
+  const [decisionTarget, setDecisionTarget] = useState<PendingLeave | null>(null);
+  const [decisionAction, setDecisionAction] = useState<'APPROVED' | 'REJECTED' | null>(null);
+
   // Reject modal
   const [rejectTarget, setRejectTarget] = useState<PendingUser | null>(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -214,16 +241,18 @@ export default function SupervisorDashboardPage() {
         if (filterSearch) params.set('search', filterSearch);
         if (filterCohort) params.set('cohortId', filterCohort);
 
-        const [roster, live, disputes, pending] = await Promise.all([
+        const [roster, live, disputes, pending, leaves] = await Promise.all([
           get<SupervisorData>(`/dashboard/supervisor?${params}`),
           get<LiveData>('/dashboard/supervisor/live'),
           get<DisputesData>('/disputes?status=OPEN'),
           get<PendingApprovalsData>('/approvals/pending').catch(() => null),
+          get<{ leaves: PendingLeave[] }>('/leaves/pending').catch(() => null),
         ]);
         setSupervisorData(roster);
         setLiveData(live);
         setDisputesData(disputes);
         if (pending) setPendingApprovals(pending);
+        if (leaves) setPendingLeaves(leaves.leaves);
       } catch {
         setError('Failed to load dashboard data.');
       } finally {
@@ -274,6 +303,38 @@ export default function SupervisorDashboardPage() {
       setRejecting(false);
     }
   }, [rejectTarget, rejectReason]);
+
+  // Leave decision
+  const handleApproveLeave = useCallback(async (leaveId: string) => {
+    setDecidingLeaveId(leaveId);
+    try {
+      await patch(`/leaves/${leaveId}/decide`, { action: 'APPROVED' });
+      setPendingLeaves((prev) => prev.filter((l) => l.id !== leaveId));
+    } catch {
+      // Error handled silently
+    } finally {
+      setDecidingLeaveId(null);
+    }
+  }, []);
+
+  const handleRejectLeave = useCallback(async () => {
+    if (!decisionTarget) return;
+    setDecidingLeaveId(decisionTarget.id);
+    try {
+      await patch(`/leaves/${decisionTarget.id}/decide`, {
+        action: 'REJECTED',
+        decisionNote: leaveDecisionNote || undefined,
+      });
+      setPendingLeaves((prev) => prev.filter((l) => l.id !== decisionTarget.id));
+      setDecisionTarget(null);
+      setDecisionAction(null);
+      setLeaveDecisionNote('');
+    } catch {
+      // Error handled silently
+    } finally {
+      setDecidingLeaveId(null);
+    }
+  }, [decisionTarget, leaveDecisionNote]);
 
   const handleExport = useCallback(async () => {
     setExporting(true);
@@ -740,6 +801,118 @@ export default function SupervisorDashboardPage() {
             </CardContent>
           </Card>
 
+          {/* Leave Requests */}
+          <Card className={pendingLeaves.length > 0 ? 'border-sph-blue/30' : ''}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-sph-blue" />
+                Leave Requests
+                {pendingLeaves.length > 0 && (
+                  <span className="ml-auto rounded-full bg-sph-blue/20 px-2 py-0.5 text-[10px] font-bold text-sph-blue">
+                    {pendingLeaves.length}
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {pendingLeaves.length > 0 ? (
+                <div className="space-y-3">
+                  {pendingLeaves.slice(0, 10).map((leave) => (
+                    <div
+                      key={leave.id}
+                      className="rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)]/50 p-3"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-[var(--text-primary)]">
+                            {leave.user.fullName}
+                          </p>
+                          <p className="text-[10px] text-sph-blue">
+                            {LEAVE_TYPE_LABELS[leave.type]}
+                          </p>
+                          <p className="mt-0.5 text-[10px] text-muted">
+                            {new Date(leave.startDate).toLocaleDateString('en-KE', {
+                              month: 'short',
+                              day: 'numeric',
+                            })}{' '}
+                            &mdash;{' '}
+                            {new Date(leave.endDate).toLocaleDateString('en-KE', {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </p>
+                          <p className="mt-1 text-xs text-muted line-clamp-2">{leave.reason}</p>
+                          {(() => {
+                            const slaMs = 72 * 3600000;
+                            const elapsedMs = Date.now() - new Date(leave.createdAt).getTime();
+                            const remainingMs = slaMs - elapsedMs;
+                            const remainingH = Math.floor(remainingMs / 3600000);
+                            if (remainingMs <= 0) {
+                              return (
+                                <p className="mt-1 text-[10px] font-medium text-sph-red">
+                                  Overdue — escalated
+                                </p>
+                              );
+                            }
+                            const urgent = remainingH < 6;
+                            const soon = remainingH < 24;
+                            return (
+                              <p
+                                className={`mt-1 text-[10px] font-medium ${
+                                  urgent
+                                    ? 'text-sph-red'
+                                    : soon
+                                      ? 'text-sph-amber'
+                                      : 'text-sph-green'
+                                }`}
+                              >
+                                {remainingH}h remaining before escalation
+                              </p>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="flex-1 h-8 text-xs"
+                          disabled={decidingLeaveId === leave.id}
+                          onClick={() => handleApproveLeave(leave.id)}
+                        >
+                          {decidingLeaveId === leave.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <ThumbsUp className="h-3 w-3" />
+                          )}
+                          <span className="ml-1">Approve</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 h-8 text-xs border-sph-red/30 text-sph-red hover:bg-sph-red/10"
+                          onClick={() => {
+                            setDecisionTarget(leave);
+                            setDecisionAction('REJECTED');
+                            setLeaveDecisionNote('');
+                          }}
+                        >
+                          <ThumbsDown className="h-3 w-3" />
+                          <span className="ml-1">Reject</span>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 py-6">
+                  <CalendarDays className="h-6 w-6 text-muted" />
+                  <p className="text-sm text-muted">No pending requests</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Quick Actions */}
           <Card>
             <CardHeader>
@@ -900,11 +1073,71 @@ export default function SupervisorDashboardPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" render={<DialogClose />}>
-              Cancel
-            </Button>
+            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
             <Button variant="destructive" disabled={rejecting} onClick={handleReject}>
               {rejecting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ThumbsDown className="h-4 w-4" />
+              )}
+              <span className="ml-1">Reject</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Leave Reject Modal */}
+      <Dialog
+        open={!!decisionTarget && decisionAction === 'REJECTED'}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDecisionTarget(null);
+            setDecisionAction(null);
+            setLeaveDecisionNote('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Leave Request</DialogTitle>
+            <DialogDescription>
+              {decisionTarget && (
+                <>
+                  Reject <strong>{decisionTarget.user.fullName}</strong>&apos;s{' '}
+                  {LEAVE_TYPE_LABELS[decisionTarget.type]} leave request.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-3 py-2">
+            <Label htmlFor="leaveRejectReason">Reason (required)</Label>
+            <Input
+              id="leaveRejectReason"
+              value={leaveDecisionNote}
+              onChange={(e) => setLeaveDecisionNote(e.target.value)}
+              placeholder="e.g. Insufficient coverage during this period"
+              className="h-11 rounded-xl border-[var(--border)] bg-[var(--surface-elevated)] px-4 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDecisionTarget(null);
+                setDecisionAction(null);
+                setLeaveDecisionNote('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={decidingLeaveId === decisionTarget?.id || !leaveDecisionNote.trim()}
+              onClick={handleRejectLeave}
+            >
+              {decidingLeaveId === decisionTarget?.id ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <ThumbsDown className="h-4 w-4" />

@@ -11,6 +11,7 @@ import userRoutes from './user.routes.js';
 import disputeRoutes from './dispute.routes.js';
 import approvalRoutes from './approval.routes.js';
 import inviteRoutes from './invite.routes.js';
+import leaveRoutes from './leave.routes.js';
 
 const router = Router();
 
@@ -34,5 +35,6 @@ router.use('/users', userRoutes);
 router.use('/disputes', disputeRoutes);
 router.use('/approvals', approvalRoutes);
 router.use('/invites', inviteRoutes);
+router.use('/leaves', leaveRoutes);
 
 export default router;

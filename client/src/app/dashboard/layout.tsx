@@ -19,6 +19,7 @@ import {
   Moon,
   FileText,
   Bell,
+  CalendarDays,
 } from 'lucide-react';
 import { AuthGuard } from '@/components/guards/AuthGuard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -159,6 +160,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       match: '/dashboard/notifications',
     },
     { href: '/dashboard/profile', icon: User, label: 'Profile', match: '/dashboard/profile' },
+    { href: '/dashboard/leave', icon: CalendarDays, label: 'Leave', match: '/dashboard/leave' },
     ...(role === 'ATTACHEE'
       ? [
           {
@@ -242,6 +244,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       match: '/dashboard/notifications',
     },
     { href: '/dashboard/profile', icon: User, label: 'Profile', match: '/dashboard/profile' },
+    { href: '/dashboard/leave', icon: CalendarDays, label: 'Leave', match: '/dashboard/leave' },
     ...(role === 'ATTACHEE'
       ? [
           {
