@@ -120,6 +120,7 @@ model User {
   approvedUsers    User[]          @relation("UserApprover")
   disputes         Dispute[]       @relation("DisputeUser")
   resolvedDisputes Dispute[]       @relation("DisputeResolver")
+  decidedLeaves    Leave[]         @relation("LeaveDecider")
   auditLogs        AuditLog[]      @relation("AuditActor")
   overriddenLogs   AttendanceLog[] @relation("AttendanceOverrider")
 
@@ -269,6 +270,7 @@ model Leave {
   updatedAt    DateTime    @updatedAt
 
   user         User        @relation(fields: [userId], references: [id])
+  decider      User?       @relation("LeaveDecider", fields: [decidedBy], references: [id])
 }
 
 model Announcement {
