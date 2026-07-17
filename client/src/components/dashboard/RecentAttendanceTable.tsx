@@ -24,6 +24,8 @@ interface AttendanceRow {
 
 interface RecentAttendanceTableProps {
   logs: AttendanceRow[];
+  showAll?: boolean;
+  compact?: boolean;
 }
 
 function formatTime(iso: string | null): string {
@@ -71,19 +73,21 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-export function RecentAttendanceTable({ logs }: RecentAttendanceTableProps) {
-  const recent = logs.slice(0, 5);
+export function RecentAttendanceTable({ logs, showAll, compact }: RecentAttendanceTableProps) {
+  const recent = showAll ? logs : logs.slice(0, 5);
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Recent Attendance</CardTitle>
-        <CardAction>
-          <Link href="/dashboard/history" className="text-xs text-sph-blue hover:underline">
-            Full history →
-          </Link>
-        </CardAction>
-      </CardHeader>
+      {!compact && (
+        <CardHeader>
+          <CardTitle>Recent Attendance</CardTitle>
+          <CardAction>
+            <Link href="/dashboard/history" className="text-xs text-sph-blue hover:underline">
+              Full history →
+            </Link>
+          </CardAction>
+        </CardHeader>
+      )}
       <CardContent className="p-0">
         {recent.length === 0 ? (
           <p className="px-(--card-spacing) pb-4 text-sm text-muted">No recent records</p>

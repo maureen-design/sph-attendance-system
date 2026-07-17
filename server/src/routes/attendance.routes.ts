@@ -8,6 +8,8 @@ import {
   submitExcuse,
   decideExcuse,
   overrideAttendance,
+  getAttendanceHistory,
+  getAttendanceTrend,
 } from '../controllers/attendance.controller.js';
 import { authenticateToken, requireRole } from '../middleware/index.js';
 
@@ -27,5 +29,8 @@ router.patch(
   requireRole('SUPER_ADMIN', 'DEPARTMENT_SUPERVISOR'),
   overrideAttendance,
 );
+
+router.get('/history', getAttendanceHistory);
+router.get('/trend', getAttendanceTrend);
 
 export default router;
